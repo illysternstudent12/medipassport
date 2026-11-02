@@ -1,0 +1,81 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2537 >>
+stream
+BT 0.950 0.920 0.890 rg /F2 130 Tf 0.8660 0.5000 -0.5000 0.8660 110 250 Tm (SAMPLE) Tj ET
+0.906 0.769 0.694 rg 0 752 595 90 re f
+BT 0.000 0.000 0.000 rg /F2 17 Tf 40 806 Td (Carmel Medical Laboratory) Tj ET
+BT 0.250 0.200 0.180 rg /F1 9 Tf 40 789 Td (Haifa, Israel  |  Fictional sample clinic) Tj ET
+BT 0.000 0.000 0.000 rg /F2 10 Tf 430 806 Td (MediPassport) Tj ET
+BT 0.000 0.000 0.000 rg /F3 10 Tf 430 792 Td (demo document) Tj ET
+BT 0.000 0.000 0.000 rg /F3 34 Tf 40 700 Td (Laboratory report) Tj ET
+BT 0.350 0.350 0.350 rg /F1 10 Tf 40 680 Td (Date issued: 3 Sep 2026) Tj ET
+0.984 0.953 0.922 rg 40 590 515 72 re f
+BT 0.400 0.400 0.400 rg /F2 7 Tf 54 640 Td (PATIENT) Tj ET
+BT 0.000 0.000 0.000 rg /F2 11 Tf 54 624 Td (Maya Stein) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7 Tf 180 640 Td (DATE OF BIRTH) Tj ET
+BT 0.000 0.000 0.000 rg /F2 11 Tf 180 624 Td (14 Mar 1994) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7 Tf 306 640 Td (SEX) Tj ET
+BT 0.000 0.000 0.000 rg /F2 11 Tf 306 624 Td (Female) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7 Tf 432 640 Td (NATIONALITY) Tj ET
+BT 0.000 0.000 0.000 rg /F2 11 Tf 432 624 Td (Israeli) Tj ET
+BT 0.400 0.400 0.400 rg /F1 8.5 Tf 54 602 Td (Patient no. IL-883104) Tj ET
+0.757 0.871 0.729 rg 0 0 595 46 re f
+BT 0.000 0.000 0.000 rg /F2 8 Tf 40 26 Td (FICTIONAL SAMPLE DOCUMENT  |  Created for the MediPassport demo) Tj ET
+BT 0.000 0.000 0.000 rg /F1 7.5 Tf 40 14 Td (Not a real medical record. Not for clinical use. All names, clinics and values are invented.) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7.5 Tf 40 560 Td (TEST) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7.5 Tf 300 560 Td (RESULT) Tj ET
+BT 0.400 0.400 0.400 rg /F2 7.5 Tf 430 560 Td (REFERENCE) Tj ET
+0.000 0.000 0.000 RG 0.8 w 40 550 m 555 550 l S
+BT 0.000 0.000 0.000 rg /F2 11 Tf 40 528 Td (HbA1c \(glycated haemoglobin\)) Tj ET
+BT 0.000 0.000 0.000 rg /F1 10 Tf 300 528 Td (6.8 %) Tj ET
+BT 0.000 0.000 0.000 rg /F1 10 Tf 430 528 Td (Target < 7.0) Tj ET
+0.831 0.796 0.773 RG 0.8 w 40 516 m 555 516 l S
+BT 0.000 0.000 0.000 rg /F2 11 Tf 40 494 Td (Creatinine) Tj ET
+BT 0.000 0.000 0.000 rg /F1 10 Tf 300 494 Td (0.8 mg/dL) Tj ET
+BT 0.000 0.000 0.000 rg /F1 10 Tf 430 494 Td (0.5 - 1.1) Tj ET
+0.831 0.796 0.773 RG 0.8 w 40 482 m 555 482 l S
+BT 0.000 0.000 0.000 rg /F1 9 Tf 40 460 Td (Requested by Dr. Noa Levi, MD. Results verified by laboratory staff \(sample\).) Tj ET
+0.000 0.000 0.000 RG 0.6 w 40 150 m 230 150 l S
+BT 0.000 0.000 0.000 rg /F2 9.5 Tf 40 136 Td (Carmel Medical Laboratory) Tj ET
+BT 0.400 0.400 0.400 rg /F1 8 Tf 40 124 Td (Signature \(sample\)) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>
+endobj
+8 0 obj
+<< /Title (Laboratory report - Maya Stein \(sample\)) /Author (MediPassport demo) /Subject (Fictional sample medical document) /Keywords (MPDEMO:maya:lab) /Creator (tools/make_demo_docs.py) >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000267 00000 n 
+0000002856 00000 n 
+0000002953 00000 n 
+0000003055 00000 n 
+0000003155 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+startxref
+3363
+%%EOF

@@ -1,0 +1,86 @@
+/* ==========================================================================
+   MediPassport · Design tokens
+   Editorial wellness: black ink on cream, warm gray, peach and mint.
+   ========================================================================== */
+:root {
+  /* Brand palette (source of truth) */
+  --black: #000000;
+  --warm-gray: #D4CBC5;
+  --peach: #E7C4B1;
+  --cream: #FBF3EB;
+  --mint: #C1DEBA;
+  --white: #FFFFFF;
+
+  /* Derived tints, for depth only (never new hues) */
+  --cream-2: #F4E8DD;
+  --peach-soft: #F2DCCF;
+  --peach-deep: #D9A68C;
+  --mint-soft: #DCEDD7;
+  --mint-deep: #8FB985;
+  --gray-soft: #E6DFDA;
+
+  /* Semantic */
+  --bg: var(--cream);
+  --surface: var(--white);
+  --ink: var(--black);
+  --ink-2: rgba(0, 0, 0, 0.72);
+  --muted: rgba(0, 0, 0, 0.55);
+  --line: rgba(0, 0, 0, 0.1);
+  --line-strong: rgba(0, 0, 0, 0.22);
+  --on-ink: var(--cream);
+  --alert: #A8432A;            /* allergy flags: burnt peach, not alarm red */
+
+  /* Typography */
+  --font-sans: "Inter Tight", "Noto Sans Hebrew", "Noto Sans Arabic", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+
+  --fs-mega: clamp(3.6rem, 0.8rem + 12vw, 13rem);
+  --fs-hero: clamp(3.1rem, 1.2rem + 7.6vw, 8.6rem);
+  --fs-h2: clamp(2.5rem, 1.3rem + 4.6vw, 5.8rem);
+  --fs-h3: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
+  --fs-quote: clamp(1.65rem, 1.1rem + 2.3vw, 3.2rem);
+  --fs-lead: clamp(1.08rem, 1rem + 0.35vw, 1.3rem);
+  --fs-body: 1rem;
+  --fs-sm: 0.875rem;
+  --fs-xs: 0.75rem;
+
+  --tracking-tight: -0.058em;
+  --tracking-display: -0.048em;
+  --leading-display: 0.9;
+
+  /* Spacing (4px base) */
+  --s-1: 0.25rem; --s-2: 0.5rem; --s-3: 0.75rem; --s-4: 1rem;
+  --s-5: 1.5rem;  --s-6: 2rem;   --s-7: 3rem;    --s-8: 4rem;
+  --s-9: 6rem;    --s-10: 8rem;
+
+  --gutter: clamp(1.1rem, 0.5rem + 2.4vw, 3rem);
+  --section-y: clamp(5rem, 3rem + 8vw, 11rem);
+  --maxw: 1440px;
+
+  /* Radii: large and soft */
+  --r-sm: 14px;
+  --r-md: 22px;
+  --r-lg: 32px;
+  --r-xl: clamp(30px, 2.5vw + 18px, 56px);
+  --r-pill: 999px;
+
+  /* Elevation: warm, diffuse shadows (brown-tinted, never gray-blue) */
+  --shadow-sm: 0 1px 2px rgba(60, 35, 20, 0.06), 0 4px 12px rgba(60, 35, 20, 0.05);
+  --shadow-md: 0 2px 6px rgba(60, 35, 20, 0.06), 0 18px 40px -8px rgba(60, 35, 20, 0.18);
+  --shadow-lg: 0 10px 30px rgba(60, 35, 20, 0.08), 0 50px 100px -20px rgba(60, 35, 20, 0.3);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 180ms;
+  --dur-2: 360ms;
+  --dur-3: 900ms;
+
+  /* Touch */
+  --tap: 48px;
+  --header-h: 76px;
+
+  /* Paper grain (inline SVG fractal noise) */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
