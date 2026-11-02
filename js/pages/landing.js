@@ -329,7 +329,7 @@ export const landingPage = {
           <div class="reveal">${Eyebrow('04', 'Insurance Integration')}</div>
           ${SplitHeading('h2', ['Built with', '<span class="serif">your insurer.</span>'], 'h2 feature__title')}
           <p class="lead reveal">Travel insurers license MediPassport for their policyholders and offer it free. When you need care, translated records reach the insurer directly, so claims are clearer and tests aren't repeated.</p>
-          <div class="reveal" style="--delay:120ms">${Button({ label: 'Partner with us', href: ROUTES.partners, variant: 'primary' })}</div>
+          <div class="reveal hero__ctas" style="--delay:120ms">${Button({ label: 'Partner with us', href: ROUTES.partners, variant: 'primary' })}${Button({ label: 'Insurer console demo', href: '#/insurer', variant: 'ghost', iconName: 'eye' })}</div>
         </div>
 
         <ol class="flow" aria-label="How MediPassport connects insurer, traveler and doctor">

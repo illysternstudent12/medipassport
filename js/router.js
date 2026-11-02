@@ -23,12 +23,17 @@ export function createRouter({ routes, notFound, outlet, onChange }) {
     const page = routes[path] || notFound;
 
     if (typeof cleanup === 'function') cleanup();
-    outlet.innerHTML = page.html();
+    // A fresh container per render: listeners a page attaches to its root are
+    // discarded with it, so revisiting a route never stacks duplicate handlers.
+    const view = document.createElement('div');
+    view.className = 'route-view';
+    view.innerHTML = page.html();
+    outlet.replaceChildren(view);
     outlet.classList.remove('route-enter');
     void outlet.offsetWidth; // restart animation
     outlet.classList.add('route-enter');
     document.title = page.title;
-    cleanup = page.mount ? page.mount(outlet) : null;
+    cleanup = page.mount ? page.mount(view) : null;
 
     onChange?.(path);
 

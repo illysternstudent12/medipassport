@@ -62,6 +62,14 @@ export const appProfile = {
         </ul>
       </section>
 
+      <section class="p-pro reveal" aria-label="Connected care">
+        <div class="sec-head"><h2>Connected care</h2><span class="sec-head__hint">Demo</span></div>
+        <div class="ptiles">
+          <a class="ptile ptile--mint" href="#/app/share">${icon('qr')}<span class="label">Patients</span><b>Secure sharing</b><small>QR, links, access codes</small></a>
+          <a class="ptile ptile--peach" href="#/insurer">${icon('umbrella')}<span class="label">Insurers</span><b>Insurer console</b><small>Simulated partner view</small></a>
+        </div>
+      </section>
+
       <a class="pexit p-exit" href="#/">${icon('logout')}<span>Back to website</span></a>
       <p class="app-note">Fictional traveler · sample data · not medical advice</p>
     `, t);

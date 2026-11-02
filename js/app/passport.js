@@ -5,15 +5,10 @@ import { icon } from '../icons.js';
 import { Tag, QR } from '../components.js';
 import { currentTraveler, LANG_NAMES } from './data.js';
 import { appShell, AppTop, Portrait, APP_ROUTES, openSheet, toast, mountShell } from './shell.js';
+import { sharesFor, statusOf } from '../share/store.js';
 import { isDesktop } from './ui.js';
 
-const DURATIONS = [
-  { key: '1h', label: '1 hour', secs: 3600 },
-  { key: '24h', label: '24 hours', secs: 86400 },
-  { key: 'visit', label: 'This visit', secs: 4 * 3600 },
-];
 
-const fmt = (s) => [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, '0')).join(':');
 
 function passes(t) {
   return [
@@ -85,27 +80,15 @@ function passes(t) {
         <button type="button" class="wbtn" data-demo="Demo: calling is disabled in the preview.">${icon('phone')} Call ${t.contact.name.split(' ')[0]}</button>`,
     },
     {
-      key: 'share', cls: 'wpass--share', label: 'Share with doctor', meta: 'Temporary',
-      body: `
-        <div class="wshare" data-share>
-          <div class="wshare__qr-wrap">
-            <div class="wshare__qr" data-qr>${QR(t.id.length * 13, { fg: '#000', bg: '#FFFFFF' })}</div>
-            <svg class="wshare__ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56"/><circle cx="60" cy="60" r="56" data-ring/></svg>
-          </div>
-          <div class="wshare__info">
-            <span class="label">Access expires in</span>
-            <b class="wshare__timer" data-timer>01:00:00</b>
-            <span class="wshare__state" data-state><span class="dot-live"></span> Doctor can view · translated to ${LANG_NAMES[t.trip.lang]}</span>
-          </div>
-        </div>
-        <div class="segmented wshare__dur" role="group" aria-label="Access duration" data-dur>
-          <span class="segmented__thumb" aria-hidden="true"></span>
-          ${DURATIONS.map((d, i) => `<button type="button" data-d="${d.key}" aria-pressed="${i === 0}">${d.label}</button>`).join('')}
-        </div>
-        <div class="wshare__actions">
-          <button type="button" class="wbtn" data-new>${icon('refresh')} New code</button>
-          <button type="button" class="wbtn wbtn--line" data-revoke>${icon('close')} Revoke</button>
-        </div>`,
+      key: 'share', cls: 'wpass--share', label: 'Share with doctor', meta: (() => { const n = sharesFor(t.id).filter((x) => statusOf(x) === 'active').length; return n ? `${n} active` : 'Secure'; })(),
+      body: (() => {
+        const active = sharesFor(t.id).filter((x) => statusOf(x) === 'active');
+        return `<div class="wshare2">
+          <p>Give a doctor or your insurer temporary access to the documents you choose. Every share has its own QR code, link and access code, and you can revoke it any time.</p>
+          ${active.length ? `<ul class="wshare2__list">${active.slice(0, 3).map((x) => `<li>${icon(x.recipient === 'insurer' ? 'umbrella' : 'heart')}<span><b>${x.label}</b><small>${x.docs.length} document${x.docs.length === 1 ? '' : 's'} · code ${x.code}</small></span></li>`).join('')}</ul>` : ''}
+          <a class="wbtn" href="#/app/share">${icon('qr')} ${active.length ? 'Manage sharing' : 'Share securely'}</a>
+        </div>`;
+      })(),
     },
   ];
 }
@@ -236,61 +219,19 @@ export const appPassport = {
 
     root.querySelector('[data-wallet]').addEventListener('click', () => walletPreview(t));
 
-    // Share pass: duration, countdown, regenerate, revoke
     const share = root.querySelector('[data-pass="share"]');
-    const seg = share.querySelector('[data-dur]');
-    const timerEl = share.querySelector('[data-timer]');
-    const ring = share.querySelector('[data-ring]');
-    const state = share.querySelector('[data-state]');
-    const qr = share.querySelector('[data-qr]');
-    const C = 2 * Math.PI * 56;
-    ring.style.strokeDasharray = `${C}`;
-    let total = 3600, left = 3600, revoked = false, seed = t.id.length * 13;
-
-    const moveThumb = () => {
-      const a = seg.querySelector('[aria-pressed="true"]');
-      const th = seg.querySelector('.segmented__thumb');
-      th.style.width = `${a.offsetWidth}px`;
-      th.style.transform = `translateX(${a.offsetLeft}px)`;
-    };
-    const paint = () => {
-      timerEl.textContent = revoked ? '00:00:00' : fmt(left);
-      ring.style.strokeDashoffset = `${revoked ? C : C * (1 - left / total)}`;
-      share.classList.toggle('is-revoked', revoked);
-      state.innerHTML = revoked ? 'Access revoked · code no longer works' : `<span class="dot-live"></span> Doctor can view · translated to ${LANG_NAMES[t.trip.lang]}`;
-    };
-    const fresh = () => {
-      seed += 17;
-      qr.innerHTML = QR(seed, { fg: '#000', bg: '#FFFFFF' });
-      qr.classList.remove('is-new'); void qr.offsetWidth; qr.classList.add('is-new');
-      revoked = false; left = total; paint();
-    };
-    seg.addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-d]');
-      if (!b) return;
-      seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      moveThumb();
-      total = DURATIONS.find((d) => d.key === b.dataset.d).secs;
-      fresh();
-      layout(activeKey);
-    });
-    share.querySelector('[data-new]').addEventListener('click', () => { fresh(); toast('New code generated. The previous one stopped working.'); });
-    share.querySelector('[data-revoke]').addEventListener('click', () => { revoked = true; paint(); toast('Access revoked.'); });
-    const tick = setInterval(() => { if (!revoked && left > 0) { left--; paint(); } }, 1000);
 
     requestAnimationFrame(() => {
       layout(null);
-      moveThumb();
       if (/[?&]share/.test(location.hash)) {
         if (desktop) { share.scrollIntoView({ block: 'center' }); share.classList.add('is-spot'); }
         else { activeKey = 'share'; layout('share'); }
       }
     });
-    document.fonts?.ready.then(() => { layout(activeKey); moveThumb(); });
-    const onResize = () => { layout(activeKey); moveThumb(); };
+    document.fonts?.ready.then(() => { layout(activeKey); });
+    const onResize = () => { layout(activeKey); };
     window.addEventListener('resize', onResize);
-    paint();
 
-    return () => { off.forEach((f) => f?.()); clearInterval(tick); window.removeEventListener('resize', onResize); };
+    return () => { off.forEach((f) => f?.()); window.removeEventListener('resize', onResize); };
   },
 };

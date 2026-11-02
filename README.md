@@ -69,6 +69,9 @@ js/
 | `#/app/profile`  | Traveler details, demo traveler switcher, settings |
 | `#/app/emergency`| "I need medical help": five emergency actions |
 | `#/app/map`      | Medical map: nearby ERs, hospitals, clinics and doctors |
+| `#/app/share`    | Secure sharing: QR codes, access links and codes, expiry, revocation, activity |
+| `#/portal?s=…`   | Doctor portal opened from a share link or QR |
+| `#/insurer`      | Insurer console (B2B, simulated sign-in) |
 | `#/app/doctor`   | Doctor view: full record in the doctor's language, one-tap patient/doctor switch (`?lang=xx`) |
 
 Landing sections use ids `problem`, `passport`, `translation`, `emergency`, and `insurers`. Link to them with `data-scroll="<id>"`.
@@ -156,6 +159,15 @@ python tools/make_demo_docs.py
 - **Facility details** (address, phone, opening hours, specialities, website) are shown only when present in OSM. Opening hours are parsed for common formats; anything else is shown as written. Travel times are straight-line estimates and are labeled so.
 - **Insurance network:** no facility is marked "in network". The fictional insurers have no verified network data, so every facility shows "Network not verified" and the insurance panel says to ask the 24/7 line.
 - **Calls:** in the demo scenario, calls are disabled and the number is shown to dial manually (so testers never reach 112 or a real hospital). With your real location, facility phone numbers are real `tel:` links.
+
+## Connected care (Batch 6)
+
+`js/share/` (store + QR), `js/app/share.js`, `js/portal/` (doctor portal, insurer console); styles in `css/connected.css`.
+
+- **Secure sharing:** the patient picks a recipient (a doctor, or their insurer for one claim), the documents, the summary sections (doctors always get allergies and blood type), the doctor's language and a duration (1 hour, 24 hours, 7 days). Each share gets a **real, scannable QR code** (qrcode-generator, MIT, from jsDelivr), a link and a 4-digit access code. Shares list their status and an activity history (created, opened, wrong code, language switched, documents viewed, revoked). "Share medical QR" in the emergency screen creates 1-hour doctor access in one tap.
+- **Doctor portal:** opening the link or QR asks for the access code (**simulated authentication**). The clinician then sees identification, allergies, and only the sections and documents shared, with originals beside translations, language switching, and a live expiry countdown. It locks itself on expiry or revocation.
+- **Insurer console:** simulated sign-in as one of three fictional insurers. It shows enrolled policyholders, active passports, connected policies, a monthly-active chart (with table view), emergency assistance requests (location and policy only), documents authorized for claims review (per claim, with expiry), and licensing (a fictional €3.90 per policyholder per year). Insurers never see medical histories, summaries or documents that weren't authorized; the console lists what it can and can't see.
+- **Demo limits (stated in the UI):** there is no server. A share's scope and code travel inside the link, so links work on any device but enforce only their expiry there. Revocation, activity history, claim authorizations and assistance requests are stored in this browser. A production system would issue opaque tokens and check every request server-side. Share links point to the live site, or to the local server when running locally.
 
 ## Notes
 

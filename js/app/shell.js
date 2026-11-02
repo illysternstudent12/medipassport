@@ -135,6 +135,11 @@ function SideNav(active, t) {
       ${NAV.map((n) => `<a class="snav__item" href="${APP_ROUTES[n.key]}" ${n.key === active ? 'aria-current="page"' : ''}>${icon(n.ic)}<span>${n.label}</span></a>`).join('')}
     </nav>
     <a class="snav__sos" href="#/app/emergency">${icon('siren')}<span><b>I need medical help</b><small>Find care · passport · call ${t.trip.emergency}</small></span></a>
+    <div class="snav__pro">
+      <span class="label">Connected care</span>
+      <a class="snav__item snav__item--sm" href="#/app/share">${icon('qr')}<span>Secure sharing</span></a>
+      <a class="snav__item snav__item--sm" href="#/insurer" target="_blank" rel="noopener">${icon('umbrella')}<span>Insurer console</span></a>
+    </div>
     <div class="snav__who">
       <span class="label">Demo traveler</span>
       ${TravelerSwitch(t, 'compact')}

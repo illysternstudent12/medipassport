@@ -23,7 +23,7 @@ export const partnersPage = {
           ${Tag('Partner portal · coming soon', { iconName: 'umbrella', variant: 'mint' })}
           ${SplitHeading('h1', ['Partner with', '<span class="serif">MediPassport.</span>'], 'h2 stub__title')}
           <p class="lead">Offer every policyholder a digital medical passport, licensed annually per policyholder. Partner onboarding opens in a later release.</p>
-          <div class="hero__ctas">${Button({ label: 'How it works', href: ROUTES.home, attrs: 'data-scroll="insurers"' })}</div>
+          <div class="hero__ctas">${Button({ label: 'How it works', href: ROUTES.home, attrs: 'data-scroll="insurers"' })}${Button({ label: 'Insurer console demo', href: '#/insurer', variant: 'ghost', iconName: 'eye' })}</div>
         </div>
         <ol class="steps">
           <li class="steps__item card card--cream reveal"><span class="steps__n">1</span><div><h3>License per policyholder</h3><p>One annual fee, included in your travel policies.</p></div></li>

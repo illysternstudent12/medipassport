@@ -6,6 +6,7 @@ import { openSheet, toast } from '../app/ui.js';
 import { criticalLines } from '../translate/records.js';
 import { langInfo } from '../translate/glossary.js';
 import { DEMO } from './facilities.js';
+import { addAssistRequest } from '../share/store.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -41,7 +42,8 @@ export function openInsuranceSheet(t) {
         <span class="inssheet__ok">${esc(ins.status)}</span>
       </div>
       <button type="button" class="ebig ebig--peach" data-demo="Demo: this would call ${esc(ins.provider)} 24/7 medical assistance.">${icon('phone')}<span><b>Call 24/7 medical assistance</b><small>Before non-emergency treatment, if you can</small></span>${icon('chevron')}</button>
-      <button type="button" class="ebig ebig--cream" data-demo="Demo: your insurer would receive your location and translated passport.">${icon('share')}<span><b>Notify my insurer</b><small>Sends your location and translated records</small></span>${icon('chevron')}</button>
+      <button type="button" class="ebig ebig--cream" data-notify-insurer>${icon('share')}<span><b>Notify my insurer</b><small>Sends your location and policy number. No medical records.</small></span>${icon('chevron')}</button>
+      <a class="ebig ebig--cream" href="#/app/share">${icon('lock')}<span><b>Authorize documents for a claim</b><small>You choose which documents, for how long</small></span>${icon('chevron')}</a>
       <div class="inssheet__net">
         ${icon('eye')}
         <p><b>Network status not verified here.</b> ${esc(ins.provider)} hasn’t shared a verified list of partner facilities for ${esc(t.trip.city)}, so MediPassport doesn’t mark any facility as “in network”. In an emergency, go to the nearest emergency room; for anything else, ask the assistance line which facility to use.</p>
@@ -60,7 +62,7 @@ export const emergencyScreen = {
     const actions = [
       { n: 1, href: '#/app/map', ic: 'pin', title: 'Find medical help', sub: 'Emergency rooms, hospitals and clinics near you', cls: 'eact--mint' },
       { n: 2, href: `#/app/doctor?lang=${t.trip.lang}`, ic: 'card', title: 'Show medical passport', sub: `Full record in ${lang.name} for the doctor`, cls: 'eact--cream' },
-      { n: 3, href: '#/app/passport?share', ic: 'qr', title: 'Share medical QR', sub: 'Temporary access that expires', cls: 'eact--cream' },
+      { n: 3, href: '#/app/share?quick', ic: 'qr', title: 'Share medical QR', sub: 'Creates 1-hour access for the doctor now', cls: 'eact--cream' },
       { n: 4, btn: 'insurance', ic: 'umbrella', title: 'Contact insurance', sub: `${t.insurance.provider} · 24/7 assistance`, cls: 'eact--peach' },
       { n: 5, btn: 'call', ic: 'phone', title: `Call emergency services · ${t.trip.emergency}`, sub: `${t.trip.country}: ambulance, police, fire`, cls: 'eact--alert' },
     ];
@@ -99,6 +101,13 @@ export const emergencyScreen = {
       if (b?.dataset.eact === 'insurance') openInsuranceSheet(t);
       const d = e.target.closest('[data-demo]');
       if (d) toast(d.dataset.demo);
+      const n = e.target.closest('[data-notify-insurer]');
+      if (n && !n.disabled) {
+        addAssistRequest({ provider: t.insurance.provider, name: `${t.first} ${t.last}`, where: DEMO[t.id]?.label || t.trip.city, policy: t.insurance.policy });
+        n.disabled = true;
+        n.querySelector('small').textContent = 'Sent. Your insurer can see your location and policy, not your records.';
+        toast(`${t.insurance.provider} notified (demo). Visible in the insurer console.`);
+      }
     };
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);

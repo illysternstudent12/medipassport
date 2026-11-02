@@ -11,6 +11,9 @@ import { appProfile } from './app/profile.js';
 import { appDoctor } from './app/doctor.js';
 import { emergencyScreen } from './emergency/screen.js';
 import { mapScreen } from './emergency/map.js';
+import { appShare } from './app/share.js';
+import { doctorPortal } from './portal/doctor.js';
+import { insurerConsole } from './portal/insurer.js';
 
 renderHeader(document.getElementById('site-header'));
 renderFooter(document.getElementById('site-footer'));
@@ -31,11 +34,14 @@ createRouter({
     '/app/doctor': appDoctor,
     '/app/emergency': emergencyScreen,
     '/app/map': mapScreen,
+    '/app/share': appShare,
+    '/portal': doctorPortal,
+    '/insurer': insurerConsole,
   },
   notFound: notFoundPage,
   onChange(path) {
     setActiveNav(path);
-    const isApp = path === '/demo' || path.startsWith('/app');
+    const isApp = path === '/demo' || path.startsWith('/app') || path === '/portal' || path === '/insurer';
     document.body.classList.toggle('is-app', isApp);
     document.body.classList.toggle('is-onboarding', path === '/get-started');
   },

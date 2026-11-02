@@ -143,7 +143,7 @@ export const appHome = {
             ${icon('translate')}<b>Translations</b><small>Ready in ${LANG_NAMES[t.trip.lang]}</small>
             <span class="quick__lang" aria-hidden="true">${LANG_NAMES[t.homeLang]} → ${LANG_NAMES[t.trip.lang]}</span>
           </a>
-          <a class="quick__tile quick__tile--black" href="${APP_ROUTES.passport}?share">
+          <a class="quick__tile quick__tile--black" href="#/app/share">
             <span class="quick__qr">${QR(t.id.length * 7, { fg: '#FBF3EB' })}</span><b>Share QR</b><small>Temporary doctor access</small>
           </a>
           <a class="quick__tile quick__tile--peach" href="${APP_ROUTES.documents}">

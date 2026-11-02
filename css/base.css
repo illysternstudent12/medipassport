@@ -114,6 +114,7 @@ ul, ol { padding: 0; list-style: none; }
 }
 .split.is-in .line > span { transform: none; }
 
+.route-view { display: contents; }
 .route-enter { animation: route-in 600ms var(--ease-out); }
 @keyframes route-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 

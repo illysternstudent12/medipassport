@@ -309,7 +309,9 @@ export function recordCard(rec, t, lang, { variant = 'translation', engine = 'si
 
 /* ======================================================================= summary */
 /** Structured summary compiled only from recorded facts. */
-export function summaryCard(t, lang, { engine = 'sim', narrative = null } = {}) {
+export function summaryCard(t, lang, { engine = 'sim', narrative = null, sections = null } = {}) {
+  // sections: null = everything; otherwise only these keys are rendered at all.
+  const show = (k) => !sections || sections.includes(k);
   const f = currentFacts(t);
   const dir = isRtl(lang) ? 'rtl' : 'ltr';
   const o = f.homeLang;
@@ -327,12 +329,12 @@ export function summaryCard(t, lang, { engine = 'sim', narrative = null } = {}) 
     </header>
     ${narrative ? `<p class="scard__narr">${esc(narrative)}</p>` : ''}
     <section class="ssec ssec--allergy"><h4>${icon('alert')} ${L('allergies', lang)} <em>${L('critical', lang)}</em></h4><div class="schips">${f.allergies.length ? allergyChips : `<span class="schip schip--none">${L('none_recorded', lang)}</span>`}</div></section>
-    <section class="ssec ssec--dx"><h4>${icon('heart')} ${L('diagnoses', lang)}</h4><div class="schips">${list(f.conditions, (c) => `<span class="schip schip--dx">${c.text ? seg({ raw: c.text.name }, lang, 'en') : seg({ k: c.name }, lang, o)}</span>`)}</div></section>
-    <section class="ssec ssec--med"><h4>${icon('rx')} ${L('medications', lang)}</h4><div class="schips">${list(f.medications, (m) => `<span class="schip schip--med">${m.text ? seg({ raw: m.text.name }, lang, 'en') : `${seg({ k: m.name }, lang, o)} <small>${m.dose.code ? seg({ k: m.dose.code }, lang, o) : m.dose.unit.startsWith('u_') ? `${fixed(m.dose.n, m.dose.d, lang)} ${seg({ k: m.dose.unit }, lang, o)}` : `<bdi>${fixed(m.dose.n, m.dose.d, lang)} ${m.dose.unit}</bdi>`}</small>`}</span>`)}</div></section>
-    <section class="ssec ssec--test"><h4>${icon('flask')} ${L('tests', lang)}</h4>
+    ${show('conditions') ? `<section class="ssec ssec--dx"><h4>${icon('heart')} ${L('diagnoses', lang)}</h4><div class="schips">${list(f.conditions, (c) => `<span class="schip schip--dx">${c.text ? seg({ raw: c.text.name }, lang, 'en') : seg({ k: c.name }, lang, o)}</span>`)}</div></section>` : ''}
+    ${show('medications') ? `<section class="ssec ssec--med"><h4>${icon('rx')} ${L('medications', lang)}</h4><div class="schips">${list(f.medications, (m) => `<span class="schip schip--med">${m.text ? seg({ raw: m.text.name }, lang, 'en') : `${seg({ k: m.name }, lang, o)} <small>${m.dose.code ? seg({ k: m.dose.code }, lang, o) : m.dose.unit.startsWith('u_') ? `${fixed(m.dose.n, m.dose.d, lang)} ${seg({ k: m.dose.unit }, lang, o)}` : `<bdi>${fixed(m.dose.n, m.dose.d, lang)} ${m.dose.unit}</bdi>`}</small>`}</span>`)}</div></section>` : ''}
+    ${show('tests') ? `<section class="ssec ssec--test"><h4>${icon('flask')} ${L('tests', lang)}</h4>
       <div class="schips">${keyTests.map((x) => `<span class="schip schip--test">${x.text ? seg({ raw: x.text.name }, lang, 'en') : `${seg({ k: x.name }, lang, o)} <small>${factSegments(x, lang)[0][1].lit ? `<bdi>${esc(factSegments(x, lang)[0][1].lit)}</bdi>` : seg(factSegments(x, lang)[0][1], lang, o)}</small>`}</span>`).join('')}</div>
       <p class="ssec__line">${f.tests.length ? (allOk ? L('results_ok', lang) : '') : L('no_results', lang)}</p>
-    </section>
+    </section>` : ''}
     <p class="verify">${icon('eye')} <span>${L('verify', lang)}</span></p>
   </article>`;
 }
