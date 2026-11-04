@@ -6,7 +6,7 @@ import { backButton, pushOverlay, closeOverlay, isOpen, navDirection, remember, 
 import { currentTraveler } from '../app/data.js';
 import { toast, isDesktop } from '../app/ui.js';
 import {
-  DEMO, fetchLive, loadSnapshot, rank, openStatus, navLinks, fmtDist, fmtMin, TYPE_LABEL,
+  DEMO, fetchLive, loadSnapshot, rank, openStatus, navLinks, fmtDist, fmtMin, TYPE_LABEL, geocode,
 } from './facilities.js';
 import { openCallSheet, openInsuranceSheet } from './screen.js';
 
@@ -111,6 +111,13 @@ export const mapScreen = {
           <div><h1 class="mp-h">Medical help nearby</h1><p class="mp-src" data-src>Loading…</p></div>
           <button type="button" class="mp-call" data-call>${icon('phone')}<span data-callnum>112</span></button>
         </div>
+        <div class="mp-where">
+          <form class="locsearch" data-geo role="search">
+            <label>${icon('pin')}<input type="search" placeholder="Search a place · e.g. Shinjuku, Tokyo" aria-label="Search a place or address" enterkeyhint="search" data-geoq autocomplete="off"/></label>
+            <button type="submit" class="wbtn">Go</button>
+          </form>
+          <div class="locres" data-geores hidden></div>
+        </div>
         <div class="mp-panel__body" data-body></div>
       </aside>
       <div class="mp-fabs">
@@ -122,7 +129,7 @@ export const mapScreen = {
     const t = currentTraveler();
     const demo = DEMO[t.id] || { lat: 41.3874, lng: 2.1686, label: t.trip.city, tz: t.trip.tz };
     const st = {
-      me: { lat: demo.lat, lng: demo.lng }, from: { lat: demo.lat, lng: demo.lng }, label: demo.label, tz: demo.tz || t.trip.tz, live: false,
+      me: { lat: demo.lat, lng: demo.lng }, from: { lat: demo.lat, lng: demo.lng }, label: demo.label, tz: demo.tz || t.trip.tz, live: false, searched: false,
       all: [], ranked: [], filter: 'all', q: '', selected: null, source: '', at: null,
     };
     let L = null, map = null, layer = null, me = null, alive = true;
@@ -147,7 +154,7 @@ export const mapScreen = {
     const renderList = () => {
       const v = visible();
       const f = st.selected && st.ranked.find((x) => x.id === st.selected);
-      if (f) { body.innerHTML = detail(f, st.tz, st.live); return; }
+      if (f) { body.innerHTML = detail(f, st.tz, st.live || st.searched); return; }
       body.innerHTML = v.length
         ? `<ul class="flist">${v.slice(0, 60).map((x) => listItem(x, st.tz, false)).join('')}</ul>
            <p class="mp-attr">Facility data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</p>`
@@ -172,13 +179,13 @@ export const mapScreen = {
       if (!map) return;
       if (me) me.remove();
       me = L.marker([st.me.lat, st.me.lng], {
-        icon: L.divIcon({ className: 'mk', html: `<span class="mk__me"><i></i></span><span class="mk__melabel">${st.live ? 'You' : `${esc(t.first)} · demo`}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
+        icon: L.divIcon({ className: 'mk', html: `<span class="mk__me"><i></i></span><span class="mk__melabel">${st.live ? 'You' : st.searched ? 'Searched place' : `${esc(t.first)} · demo`}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
         interactive: false, zIndexOffset: 1000,
       }).addTo(map);
     };
     const updateSrc = () => {
       const when = st.at ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(st.at) : '';
-      src.innerHTML = `${icon('pin')} ${esc(st.label)} · ${visible().length} places · ${st.source === 'snapshot' ? `saved map data${when ? ` (${when})` : ''}` : st.source === 'cache' ? 'recent map data' : 'live map data'}`;
+      src.innerHTML = `${icon('pin')} ${esc(st.label)}${st.live || st.searched ? '' : ' · demo location'} · ${visible().length} places · ${st.source === 'snapshot' ? `saved OpenStreetMap data${when ? ` (${when})` : ''}` : st.source === 'cache' ? 'OpenStreetMap · cached (under 6 h old)' : 'live from OpenStreetMap'}`;
     };
     const refresh = () => { renderList(); renderMarkers(); updateSrc(); };
 
@@ -204,7 +211,7 @@ export const mapScreen = {
 
     const showError = (msg, retry) => {
       body.innerHTML = `<div class="mp-empty mp-empty--err">${icon('alert')}<b>${esc(msg)}</b>
-        <p>You can still call ${esc(t.trip.emergency)} or contact your insurer.</p>
+        <p>You can still call ${st.searched ? 'the local emergency number' : esc(t.trip.emergency)} or contact your insurer.</p>
         <div class="mp-empty__btns"><button type="button" class="wbtn" data-retry>${icon('refresh')} Try again</button><button type="button" class="wbtn wbtn--line" data-ins>${icon('umbrella')} Contact insurance</button></div></div>`;
       body.querySelector('[data-retry]').onclick = retry;
       src.textContent = 'Map data unavailable';
@@ -219,10 +226,11 @@ export const mapScreen = {
     };
 
     // me: where the person is (ranking + marker). from: where to search. live: real location (enables calls).
-    const load = async (from, { live, label, me = from, snapshot = false }) => {
-      st.from = from; st.me = me; st.live = live; st.label = label; st.selected = null;
+    const load = async (from, { live, label, me = from, snapshot = false, searched = st.searched }) => {
+      st.from = from; st.me = me; st.live = live; st.searched = searched; st.label = label; st.selected = null;
       body.innerHTML = '<div class="mp-loading"><span></span><span></span><span></span></div>';
       src.textContent = 'Finding medical help nearby…';
+      const slow = setTimeout(() => { if (alive && st.from === from) src.textContent = 'OpenStreetMap is busy · still searching (can take up to a minute)…'; }, 8000);
       try {
         let res;
         if (snapshot && demo.snapshot) {
@@ -236,11 +244,11 @@ export const mapScreen = {
         renderMe(); refresh();
         // Coming back to the map: reopen the facility the user was looking at.
         if (restoreSel && st.ranked.some((x) => x.id === restoreSel)) { const id = restoreSel; restoreSel = null; select(id, false); }
-        if (label !== 'Map area') fit();
+        if (label !== 'Map area') { if (map) map.setView([from.lat, from.lng], 15, { animate: false }); fit(); }
       } catch (err) {
         if (!alive) return;
-        showError(err.message, () => load(from, { live, label, me, snapshot }));
-      }
+        showError(err.message, () => load(from, { live, label, me, snapshot, searched }));
+      } finally { clearTimeout(slow); }
     };
 
     /* events */
@@ -263,8 +271,13 @@ export const mapScreen = {
         if (!navigator.geolocation) { toast('Location isn’t available in this browser.'); return; }
         src.textContent = 'Waiting for location permission…';
         navigator.geolocation.getCurrentPosition(
-          (p) => { toast('Using your location. Calls are now enabled.'); st.tz = Intl.DateTimeFormat().resolvedOptions().timeZone; load({ lat: p.coords.latitude, lng: p.coords.longitude }, { live: true, label: 'Your location' }); },
-          (err) => { toast(err.code === 1 ? 'Location permission denied. Showing the demo location.' : 'Couldn’t get your location.'); updateSrc(); },
+          (p) => { toast('Using your location. Calls are now enabled.'); st.tz = Intl.DateTimeFormat().resolvedOptions().timeZone; load({ lat: p.coords.latitude, lng: p.coords.longitude }, { live: true, label: 'Your location', searched: false }); },
+          (err) => {
+            toast(err.code === 1 ? 'Location permission denied. Search for a place instead.' : err.code === 3 ? 'Location timed out. Search for a place instead.' : 'Couldn’t get your location. Search for a place instead.');
+            updateSrc();
+            if (!isDesktop()) setSnap('half');
+            root.querySelector('[data-geoq]').focus();
+          },
           { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
         );
         return;
@@ -275,6 +288,36 @@ export const mapScreen = {
         load({ lat: c2.lat, lng: c2.lng }, { live: st.live, label: 'Map area', me: st.me });
       }
     });
+    /* manual place search (Nominatim, on submit only) */
+    const geoRes = root.querySelector('[data-geores]');
+    let places = [];
+    const usePlace = (pl) => {
+      geoRes.hidden = true;
+      st.tz = pl.tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!pl.tz) toast('Opening hours use this device’s time zone for this area.');
+      const pt = { lat: pl.lat, lng: pl.lng };
+      load(pt, { live: false, label: pl.name, me: pt, searched: true });
+    };
+    root.querySelector('[data-geo]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = root.querySelector('[data-geoq]').value.trim();
+      if (q.length < 2) return;
+      const btn = e.target.querySelector('button'); btn.disabled = true;
+      geoRes.hidden = false;
+      geoRes.innerHTML = '<p class="locres__note">Searching places…</p>';
+      try {
+        places = await geocode(q);
+        if (!alive) return;
+        geoRes.innerHTML = places.length
+          ? `${places.map((pl, i) => `<button type="button" data-place="${i}"><b>${esc(pl.name)}</b><small>${esc(pl.area)}</small></button>`).join('')}<p class="locres__note">Search by <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim</a> · © OpenStreetMap contributors</p>`
+          : `<p class="locres__note">No place called “${esc(q)}” found. Try a city, district or full address.</p>`;
+        if (places.length === 1) usePlace(places[0]);
+      } catch (err) {
+        geoRes.innerHTML = `<p class="locres__note">${icon('alert')} ${esc(err.message)}</p>`;
+      } finally { btn.disabled = false; }
+    });
+    geoRes.addEventListener('click', (e) => { const b = e.target.closest('[data-place]'); if (b) usePlace(places[+b.dataset.place]); });
+
     root.querySelector('[data-q]').addEventListener('input', (e) => {
       st.q = e.target.value.trim().toLowerCase(); st.selected = null; save(); refresh();
       if (isOpen('fdetail')) closeOverlay('fdetail');

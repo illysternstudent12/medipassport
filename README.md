@@ -190,6 +190,23 @@ No language is treated as "the original". Four settings are independent per trav
 - **Headers:** main tabs (Home, Passport, Documents, Profile) show the avatar; every secondary screen shows Back. The emergency screen also has **Exit** (to Home); shares and insurer notifications are kept.
 - **Usability pass at 360px:** no sideways scrolling (including during transitions), touch targets of at least 40–44px, and no text below about 11.5px.
 
+## Real API integration (Batch 6.7)
+
+Setup guide: [`docs/SETUP.md`](docs/SETUP.md). Live status in the app: **Profile → Connected services** (`#/app/setup`). Every status there comes from a real check.
+
+**Connected now, no account needed**
+- **Map:** OpenStreetMap tiles; hospitals, clinics and doctors come live from the Overpass API, with a saved Barcelona snapshot as a fallback. **Place search** uses Nominatim (submit-only, rate-limited to 1 request/s) for when location permission is denied or you want another area. Facility cards show distance, phone, opening hours and one-tap Google Maps / Apple Maps / Waze links. Facilities are never invented, and network status is never shown as verified.
+- **Documents:** every upload is actually read on the device: the PDF text layer with pdf.js, scans and photos with Tesseract OCR (it detects the language and re-runs OCR with that language's model). Allergies, medicines, diagnoses and tests are matched against the 12-language glossary, and the rest of each line is copied as written. Nothing is invented. A **review sheet** shows the method, the detected language (which you can change), every item (edit, remove or add) and the raw text before anything is saved. Onboarding reads your own files the same way. Sample PDFs are still recognised by their tag.
+
+**Needs your credentials (code included, not connected)**
+- **Supabase** ([`supabase/`](supabase)): email/password auth, Postgres tables with owner-only Row Level Security, a private `medical-documents` storage bucket, and fictional profiles and simulated policies saved to your account.
+- **Edge Functions** keep every secret on the server: `translate` (Google Cloud Translation, DeepL or Claude; any language the provider supports, with automatic source detection), `extract` and `summarize` (Claude), and `share-open` (server-verified shares).
+- **Server-verified sharing:** when you're signed in, a share link holds only a random token. The 4-digit code, expiry and revocation are checked by `share-open` on every device, and only hashes are stored. Five wrong codes lock the link for 15 minutes, and every attempt is logged for the patient. The doctor's page re-checks every 20 s, so it locks soon after you revoke. Without a backend, shares remain clearly labelled **demo links**.
+
+**Simulated by design:** insurers (fictional, with designed logos), policy connections, insurance-network verification and clinician identity.
+
+**Tested (Nov 2026, local):** Barcelona (snapshot, 241 places) and Tokyo/Shinjuku (live Overpass, 167 places; took ~30 s while the server was busy, and the app shows a "still searching" state); navigation links; German PDF → 5 items, German detected; OCR of a French image (French detected, 3 items; OCR misread "µg" as "pg", which is why the review step exists); German → Japanese (glossary terms translated offline, German free text flagged "not translated"); demo QR share → portal. **Not tested:** Supabase storage, real translation providers and server-verified shares, because they need your project and keys.
+
 ## Notes
 
 - Facility data on the map is real (© OpenStreetMap contributors, ODbL). Travelers, insurers, IDs, clinic names, medical record and QR code are sample/illustrative data. The QR is decorative, not scannable.

@@ -82,6 +82,7 @@ export const appProfile = {
         <div class="ptiles">
           <a class="ptile ptile--mint" href="#/app/share">${icon('qr')}<span class="label">Patients</span><b>Secure sharing</b><small>QR, links, access codes</small></a>
           <a class="ptile ptile--peach" href="#/insurer">${icon('umbrella')}<span class="label">Insurers</span><b>Insurer console</b><small>Simulated partner view</small></a>
+          <a class="ptile ptile--gray ptile--wide" href="#/app/setup">${icon('wifi')}<span class="label">Account &amp; APIs</span><b>Connected services</b><small>What’s live · backend · sign in</small></a>
         </div>
       </section>
 

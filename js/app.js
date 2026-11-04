@@ -14,6 +14,8 @@ import { mapScreen } from './emergency/map.js';
 import { appShare } from './app/share.js';
 import { doctorPortal } from './portal/doctor.js';
 import { insurerConsole } from './portal/insurer.js';
+import { appSetup } from './app/setup.js';
+import { refreshServices, services } from './translate/ai.js';
 
 renderHeader(document.getElementById('site-header'));
 renderFooter(document.getElementById('site-footer'));
@@ -35,6 +37,7 @@ createRouter({
     '/app/emergency': emergencyScreen,
     '/app/map': mapScreen,
     '/app/share': appShare,
+    '/app/setup': appSetup,
     '/portal': doctorPortal,
     '/insurer': insurerConsole,
   },
@@ -46,3 +49,11 @@ createRouter({
     document.body.classList.toggle('is-onboarding', path === '/get-started');
   },
 }).start();
+
+// Ask the backend (if one is configured) which services are live, once per
+// session. If the answer changes what screens can do, re-render the current one.
+const before = JSON.stringify(services());
+refreshServices().then((st) => {
+  const strip = (o) => JSON.stringify(o, (k, v) => (k === 'at' ? undefined : v));
+  if (strip(st) !== strip(JSON.parse(before)) && location.hash.startsWith('#/app/setup') === false) window.dispatchEvent(new HashChangeEvent('hashchange'));
+}).catch(() => { /* status stays "not connected" */ });

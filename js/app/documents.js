@@ -1,20 +1,21 @@
 // App · Documents & translation
 // Mobile: summary → record list → layered card sheet. Desktop: summary + table
 // with a live preview pane. Both: searchable language picker, instant switching,
-// uploads (sample PDFs read by simulation; any PDF/image read by live AI when on).
+// uploads read for real (pdf.js text layer, Tesseract OCR) and reviewed before saving.
 import { icon } from '../icons.js';
 import { observeReveals } from '../interactions.js';
 import { currentTraveler } from './data.js';
 import { appShell, AppTop, openSheet, toast, mountShell } from './shell.js';
 import { isDesktop } from './ui.js';
-import { DOC_KINDS, detectSample } from '../onboarding/data.js';
 import { langInfo, term } from '../translate/glossary.js';
 import { buildRecords, recordCard, summaryCard, fmtDate, KIND_ICON, currentFacts, setDocLang } from '../translate/records.js';
 import { patientLang, setPatientLang, doctorLang, ensureTranslated, engineFor } from '../translate/state.js';
-import { detectFileLanguage } from '../translate/detect.js';
 import { remember, recall } from '../nav.js';
-import { openLanguagePicker, openAiSettings } from '../translate/picker.js';
-import { aiOn, extractDocument, summarize } from '../translate/ai.js';
+import { openLanguagePicker } from '../translate/picker.js';
+import { aiOn, summaryOn, providerName, summarize } from '../translate/ai.js';
+import { processDocument } from '../docs/process.js';
+import { openReview } from '../docs/review.js';
+import { isConfigured, currentUser, saveDocument } from '../backend/supabase.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmtSize = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
@@ -49,7 +50,7 @@ export function LangBar(t, lang, { doctorLink = true } = {}) {
     <div class="langbar__quick" role="group" aria-label="Quick switch">
       ${[...new Set([lang, t.homeLang, 'en', t.trip.lang])].slice(0, 4).map((c) => `<button type="button" data-quick-lang="${c}" aria-pressed="${c === lang}" lang="${c}">${esc(langInfo(c).native)}</button>`).join('')}
     </div>
-    <button type="button" class="langbar__engine langbar__engine--${eng === 'ai' || aiOn() ? 'ai' : 'sim'}" data-ai-settings>${icon('sparkle')}<span>${aiOn() ? 'Live AI' : 'Simulated'}</span></button>
+    <a class="langbar__engine langbar__engine--${eng === 'ai' || aiOn() ? 'ai' : 'sim'}" href="#/app/setup" title="Connected services">${icon('sparkle')}<span>${aiOn() ? esc(providerName()) : 'Offline glossary'}</span></a>
     ${doctorLink ? `<a class="langbar__doc" href="#/app/doctor">${icon('eye')}<span>Doctor view · ${esc(langInfo(doctorLang(t)).native)}</span></a>` : ''}
   </div>`;
 }
@@ -57,14 +58,15 @@ export function LangBar(t, lang, { doctorLink = true } = {}) {
 function recRow(t, r, lang, selected) {
   const title = r.title ? term(r.title, 'en') : r.titleText;
   const sub = r.source === 'stored' ? `Stored · not read · ${fmtSize(r.upload.size)}`
-    : r.source === 'ai' ? `Read by live AI · ${r.facts.length} items`
+    : r.source === 'ai' ? `Extracted by AI · ${r.facts.length} items · reviewed`
+    : r.source === 'read' ? `${r.upload.read?.method === 'ocr' ? 'OCR' : 'PDF text'} · ${r.facts.length} item${r.facts.length === 1 ? '' : 's'} · reviewed by you`
     : `${r.issuer}`;
   const langs = r.origLang === lang ? `<i title="Original language">${lang.toUpperCase()}</i>` : r.source === 'stored' ? `<i title="Original language">${(r.origLang || '?').toUpperCase()}</i>` : `<i title="Original: ${esc(langInfo(r.origLang || 'en').name)}">${(r.origLang || '?').toUpperCase()}</i>${icon('arrow')}<i class="is-to">${lang.toUpperCase()}</i>`;
   return `<li data-type="${r.kind}" data-search="${esc(`${title} ${r.issuer} ${r.upload?.name || ''} ${r.kind}`.toLowerCase())}">
     <button type="button" class="dcard dcard--${TONE[r.kind] || 'cream'}" data-rec="${r.id}" aria-pressed="${selected}">
       <span class="dcard__ic">${icon(KIND_ICON[r.kind] || 'file')}</span>
       <span class="dcard__txt"><small>${r.source === 'home' ? 'Home clinic' : 'Upload'} · ${fmtDate(r.date, 'en') || r.upload?.added || ''}</small><b>${esc(title)}</b><span class="dcard__preview">${esc(sub)}</span></span>
-      <span class="dcard__type">${r.source === 'home' ? 'Original' : r.source === 'ai' ? 'Live AI' : 'Upload'}</span>
+      <span class="dcard__type">${r.source === 'home' ? 'Original' : r.source === 'ai' ? 'AI-read' : r.source === 'read' ? 'Read' : 'Upload'}</span>
       <span class="dcard__date">${fmtDate(r.date, 'en') || r.upload?.added || ''}</span>
       <span class="dcard__langs dcard__flow">${r.upload && r.source !== 'home' ? '<i class="is-new">New</i>' : ''}${langs}</span>
     </button>
@@ -78,7 +80,7 @@ function origLine(r, canChange) {
   const how = !r.origLang ? 'not detected'
     : li.source === 'manual' ? `set by you${li.auto ? ` (detected: ${langInfo(li.auto).name})` : ''}`
     : li.source === 'record' ? 'as issued'
-    : li.source === 'ai' ? 'detected by live AI'
+    : li.source === 'ai' ? 'detected by AI'
     : `detected automatically · ${li.confidence || 'medium'} confidence`;
   const unsure = !r.origLang || (li.source === 'detected' && li.confidence === 'low');
   return `<div class="lview__orig ${unsure ? 'is-unsure' : ''}">
@@ -94,12 +96,12 @@ export function layeredViewer(t, r, lang, mode = 'compare', { canChange = false 
     return `<div class="lview">
       ${origLine(r, canChange)}
       <div class="ufile"><span class="ufile__ic">${icon(r.upload.source === 'Camera' ? 'camera' : 'file')}</span><span><b>${esc(r.upload.name)}</b><small>${fmtSize(r.upload.size)} · ${r.upload.source} · ${r.upload.added}</small></span></div>
-      <p class="unote">${r.upload.kind && !r.upload.mine ? 'This sample belongs to another demo traveler, so it was stored but not read.' : aiOn() ? 'Live AI couldn’t read this file. It’s stored with your passport.' : 'Stored with your passport. The simulated engine reads only MediPassport sample PDFs. Turn on live AI to read any PDF or photo.'}</p>
+      <p class="unote">${r.upload.kind && !r.upload.mine ? 'This sample belongs to another demo traveler, so it was stored but not read.' : r.upload.error ? `This file couldn’t be read (${esc(r.upload.error)}). It’s stored with your passport.` : 'Stored with your passport without extracted items (you chose “Save file only”).'}${r.upload.remote ? ' Saved in your private cloud storage.' : ''}</p>
       <div class="dsheet__actions"><button type="button" class="btn btn--ghost" data-remove-upload="${r.upload.id}"><span>Remove upload</span><span class="btn__dot">${icon('close')}</span></button></div>
     </div>`;
   }
   const same = r.origLang === lang;
-  const eng = r.source === 'ai' || engineFor(lang) === 'ai' ? 'ai' : 'sim';
+  const eng = engineFor(lang) === 'ai' ? 'ai' : 'sim';
   return `<div class="lview lview--${same ? 'single' : mode}" data-lview>
     ${origLine(r, canChange)}
     ${same ? '' : `<div class="lview__bar">
@@ -114,7 +116,7 @@ export function layeredViewer(t, r, lang, mode = 'compare', { canChange = false 
       ${same ? '' : `<div class="lview__card lview__card--orig">${recordCard(r, t, r.origLang, { variant: 'original' })}</div>`}
       <div class="lview__card lview__card--tr">${recordCard(r, t, lang, { engine: eng, variant: same ? 'original' : 'translation' })}</div>
     </div>
-    <p class="verify verify--en">${icon('eye')} <span>Medical translations require professional verification. ${eng === 'ai' ? 'Translated by live AI (Claude).' : 'Simulated translation from a reviewed glossary; no AI model was used.'} Unrecognised text is shown as written, never guessed.</span></p>
+    <p class="verify verify--en">${icon('eye')} <span>Medical translations require professional verification. ${aiOn() ? `Glossary terms translated offline; other text by ${esc(providerName())} (machine translation).` : 'Translated from a reviewed medical glossary; no AI or translation service was used.'} ${r.source === 'read' || r.source === 'ai' ? `Items were extracted from the file${r.source === 'ai' ? ' by AI' : ''} and checked by you. ` : ''}Unrecognised text is shown as written, never guessed.</span></p>
     ${r.upload && r.source !== 'home' ? `<div class="dsheet__actions"><button type="button" class="btn btn--ghost" data-remove-upload="${r.upload.id}"><span>Remove upload</span><span class="btn__dot">${icon('close')}</span></button></div>` : ''}
   </div>`;
 }
@@ -143,7 +145,7 @@ export function bindViewer(box) {
   requestAnimationFrame(thumb);
 }
 
-/** AI narrative summary (live AI only). Facts in English, coded where possible. */
+/** AI narrative summary (backend summary service only). Facts in English, coded where possible. */
 export function factsForAi(t) {
   const f = currentFacts(t);
   const en = (k) => term(k, 'en');
@@ -194,7 +196,7 @@ export const appDocuments = {
           <div class="dtable-head" aria-hidden="true"><span>Document</span><span>Source</span><span>Date</span><span>Translation</span></div>
           <ul class="dlist" data-list>${recs.map((r, i) => recRow(t, r, lang, desk && i === 0)).join('')}</ul>
           <p class="dempty" data-empty hidden>No documents match.</p>
-          <div class="ddrop" data-drop>${icon('upload')}<span><b>Drop files to add them</b><small>${aiOn() ? 'Any PDF or photo · read by live AI' : 'Sample PDFs are read automatically · other files are stored'}</small></span></div>
+          <div class="ddrop" data-drop>${icon('upload')}<span><b>Drop files to add them</b><small>Any PDF or photo · read on this device (PDF text or OCR) · you check every item before saving</small></span></div>
         </div>
         <aside class="dpane" data-pane aria-live="polite"></aside>
       </div>
@@ -229,17 +231,17 @@ export const appDocuments = {
       applyFilter();
     };
 
-    /* switch language: instant for glossary languages; live AI fills gaps */
+    /* switch language: instant for glossary languages; a connected translation service fills gaps */
     const switchTo = async (code) => {
       lang = code;
       setPatientLang(t, code);
       paint();
       try {
-        if (aiOn()) setStatus(`${icon('sparkle')} ${engineFor(code) === 'ai' ? 'Translating with Claude…' : 'Checking for text the glossary doesn’t cover…'}`, 'is-busy');
+        if (aiOn()) setStatus(`${icon('sparkle')} ${engineFor(code) === 'ai' ? `Translating with ${esc(providerName())}…` : 'Checking for text the glossary doesn’t cover…'}`, 'is-busy');
         const res = await ensureTranslated(recordsFor(t), code);
         if (!alive || lang !== code) return;
         if (res === 'translated') paint();
-        if (aiOn()) {
+        if (summaryOn()) {
           setStatus(`${icon('sparkle')} Writing an AI summary…`, 'is-busy');
           const narrative = await summarize(code, langInfo(code).name, factsForAi(t));
           if (!alive || lang !== code) return;
@@ -247,7 +249,7 @@ export const appDocuments = {
         }
         setStatus('');
       } catch (err) {
-        setStatus(`${icon('alert')} ${esc(err.message || 'Live AI failed.')} Showing what the glossary covers; the rest is marked “not translated”.`, 'is-error');
+        setStatus(`${icon('alert')} ${esc(err.message || 'Translation service failed.')} Showing what the glossary covers; the rest is marked “not translated”.`, 'is-error');
       }
     };
 
@@ -274,7 +276,6 @@ export const appDocuments = {
       }
       const q = e.target.closest('[data-quick-lang]');
       if (q) { switchTo(q.dataset.quickLang); return; }
-      if (e.target.closest('[data-ai-settings]')) { openAiSettings(); return; }
       const b = e.target.closest('[data-rec]');
       if (b) {
         const r = find(b.dataset.rec);
@@ -318,34 +319,52 @@ export const appDocuments = {
       for (const file of files) {
         const id = `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
         const temp = document.createElement('li');
-        temp.innerHTML = `<div class="dcard dcard--cream is-uploading"><span class="dcard__ic">${icon('upload')}</span><span class="dcard__txt"><small>${aiOn() ? 'Reading with live AI…' : 'Uploading…'}</small><b>${esc(file.name)}</b><span class="dcard__preview">${fmtSize(file.size)}</span></span><span class="dcard__bar"><i></i></span></div>`;
+        temp.innerHTML = `<div class="dcard dcard--cream is-uploading"><span class="dcard__ic">${icon('upload')}</span><span class="dcard__txt"><small data-step>Reading…</small><b>${esc(file.name)}</b><span class="dcard__preview">${fmtSize(file.size)}</span></span><span class="dcard__bar"><i data-pct></i></span></div>`;
         list.prepend(temp);
         temp.scrollIntoView({ block: 'nearest' });
-        const tag = await detectSample(file).catch(() => null);
-        const det = await detectFileLanguage(file);
-        const u = {
-          lang: det.lang, langConf: det.confidence, langSource: det.lang ? 'detected' : 'unknown',
-          id, name: file.name, size: file.size, source,
-          kind: tag?.kind ?? null, mine: tag ? tag.traveler === t.id : false,
-          added: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()),
+        const step = temp.querySelector('[data-step]'), bar = temp.querySelector('[data-pct]');
+        const onProgress = (label, pct) => {
+          step.textContent = typeof pct === 'number' ? `${label} · ${Math.round(pct * 100)}%` : label;
+          if (typeof pct === 'number') { bar.style.animation = 'none'; bar.style.width = `${Math.max(6, pct * 100)}%`; }
         };
-        if (!tag && aiOn()) {
-          try { u.ai = await extractDocument(file); } catch (err) { toast(err.message || 'Live AI couldn’t read this file.'); }
-        } else {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
+        const added = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+        const base = { id, name: file.name, size: file.size, type: file.type, source, added };
+        let result = null, error = null;
+        try { result = await processDocument(file, { hint: t.homeLang, onProgress }); } catch (err) { error = err.message || 'Unreadable file'; }
         if (!alive) return;
-        setUploads(t, [...getUploads(t), u]);
-        selected = u.kind && u.mine ? `smp-${u.kind}` : id;
         temp.remove();
-        paint();
-        list.querySelector(`[data-rec="${selected}"]`)?.classList.add('is-fresh');
-        const detected = u.ai?.lang || u.lang;
-        toast(u.kind && u.mine ? `${DOC_KINDS[u.kind].label} recognized · ${detected ? `${langInfo(detected.split('-')[0]).name} detected` : 'language unknown'}. Translation ready.`
-          : u.ai ? `Read by live AI: ${(u.ai.allergies.length + u.ai.medications.length + u.ai.conditions.length + u.ai.tests.length)} items. Check them against the original.`
-          : `${file.name} stored with your passport.`);
-        if (u.ai) switchTo(lang);
-        if (!isDesktop()) list.querySelector(`[data-rec="${selected}"]`)?.click();
+        const user = isConfigured() ? await currentUser().catch(() => null) : null;
+
+        const finish = async (u) => {
+          if (user) {
+            try {
+              const row = await saveDocument(file, { title: u.read?.title || file.name, lang: u.lang, facts: u.read?.items || [], text: result?.text, method: u.read ? (u.read.extraction === 'ai' ? 'ai' : 'glossary') : 'manual' });
+              u.remote = { id: row.id, path: row.storage_path };
+            } catch (err) { toast(`Cloud save failed: ${err.message}. Kept on this device.`); }
+          }
+          setUploads(t, [...getUploads(t), u]);
+          selected = id;
+          paint();
+          list.querySelector(`[data-rec="${id}"]`)?.classList.add('is-fresh');
+          if (u.read) switchTo(lang);
+          if (!isDesktop()) list.querySelector(`[data-rec="${id}"]`)?.click();
+        };
+        if (error) {
+          toast(`Couldn’t read ${file.name}: ${error}`);
+          await finish({ ...base, error, lang: null, langSource: 'unknown' });
+          continue;
+        }
+        if (result.note) toast(result.note);
+        await new Promise((done) => openReview({
+          file, result, signedIn: !!user,
+          onSave: async (rv) => {
+            await finish({ ...base, lang: rv.lang, langConf: rv.langSource === 'manual' ? 'high' : result.langConf, langSource: rv.langSource,
+              read: { title: rv.title, items: rv.items, method: result.method, ocrLangs: result.ocrLangs, extraction: result.extraction, excerpt: result.text.slice(0, 1500) } });
+            toast(`${rv.items.length} item${rv.items.length === 1 ? '' : 's'} saved from ${file.name}${rv.lang ? ` · ${langInfo(rv.lang).name}` : ''}.`);
+            done();
+          },
+          onStoreOnly: async () => { await finish({ ...base, lang: result.lang, langConf: result.langConf, langSource: result.lang ? 'detected' : 'unknown' }); toast(`${file.name} stored with your passport.`); done(); },
+        }));
       }
     };
     root.addEventListener('change', (e) => {

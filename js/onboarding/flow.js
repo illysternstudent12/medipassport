@@ -7,6 +7,7 @@ import { Portrait } from '../app/shell.js';
 import { toast } from '../app/ui.js';
 import { PassportCard } from '../app/home.js';
 import { detectFileLanguage } from '../translate/detect.js';
+import { processDocument } from '../docs/process.js';
 import { backButton, onSameScreenPop, patchState, remember, recall, forget } from '../nav.js';
 import { langInfo } from '../translate/glossary.js';
 import {
@@ -184,9 +185,11 @@ function viewUpload(s) {
 
 function fileRow(f) {
   const kind = f.kind ? DOC_KINDS[f.kind] : null;
-  const status = f.status === 'reading' ? 'Uploading…'
+  const status = f.status === 'reading' ? (f.step || 'Uploading…')
+    : f.status === 'read' ? `Read on this device (${f.method === 'ocr' ? 'OCR' : 'PDF text'}) · ${f.items.length} item${f.items.length === 1 ? '' : 's'} found${f.lang ? ` · ${langInfo(f.lang).name}` : ''}`
+    : f.status === 'failed' ? `Couldn’t read: ${esc(f.error)} · stored`
     : f.status === 'other' ? `Sample for another demo traveler · stored, not read`
-    : kind ? `Recognized · ${kind.label}${f.lang ? ` · ${langInfo(f.lang).name}` : ''}` : `Stored · not readable in the demo${f.lang ? ` · ${langInfo(f.lang).name}` : ''}`;
+    : kind ? `Recognized · ${kind.label}${f.lang ? ` · ${langInfo(f.lang).name}` : ''}` : `Stored · no medical items recognised${f.lang ? ` · ${langInfo(f.lang).name}` : ''}`;
   return `<li class="upload ${f.status === 'reading' ? 'is-reading' : ''} ${kind && f.status !== 'other' ? `upload--${kind.tone}` : ''}" data-fid="${f.id}">
     <span class="upload__ic">${icon(kind ? kind.icon : f.source === 'Camera' ? 'camera' : 'file')}</span>
     <span class="upload__txt"><b>${esc(f.name)}</b><small>${f.source} · ${fmtSize(f.size)} · <span data-status>${status}</span></small></span>
@@ -196,19 +199,20 @@ function fileRow(f) {
 }
 
 function viewExtract(s) {
-  const readable = s.files.filter((f) => f.kind && f.status === 'done');
+  const readable = s.files.filter((f) => (f.kind && f.status === 'done') || (f.status === 'read' && f.items.length));
+  const meta = (f) => (f.kind ? DOC_KINDS[f.kind] : { tone: 'cream', icon: 'file', label: f.name });
   return `
     <h1 class="ob__h">Reading your<br/><span class="serif">records.</span></h1>
-    <p class="ob-demo ob-demo--strong">${icon('sparkle')} Demo simulation: no AI model runs here. Our sample PDFs carry a tag that tells the demo what they contain. A production build would use OCR and an AI model, then ask you to check the result.</p>
+    <p class="ob-demo ob-demo--strong">${icon('sparkle')} Your own files were read on this device (pdf.js text or Tesseract OCR) and matched against a medical glossary: nothing is guessed. MediPassport sample PDFs are recognised by a tag and fill in the fictional traveler’s record. You check everything in the next step.</p>
     ${readable.length ? `
       <div class="reading" data-reading>
-        ${readable.map((f) => `<div class="rdoc rdoc--${DOC_KINDS[f.kind].tone}" data-rdoc="${f.id}">
-          <div class="rdoc__paper">${icon(DOC_KINDS[f.kind].icon)}<b>${DOC_KINDS[f.kind].label}</b><span></span><span></span><span style="width:60%"></span><i class="rdoc__scan"></i></div>
+        ${readable.map((f) => `<div class="rdoc rdoc--${meta(f).tone}" data-rdoc="${f.id}">
+          <div class="rdoc__paper">${icon(meta(f).icon)}<b>${esc(meta(f).label)}</b><span></span><span></span><span style="width:60%"></span><i class="rdoc__scan"></i></div>
           <div class="rdoc__out" data-out></div>
         </div>`).join('')}
       </div>
       <p class="found" data-found hidden></p>`
-    : `<div class="nothing">${icon('file')}<b>Nothing to read yet</b><p>The demo can only read the MediPassport sample PDFs. You can add details by hand in the next step, or go back and add the samples.</p></div>`}`;
+    : `<div class="nothing">${icon('file')}<b>Nothing recognised yet</b><p>No allergy, medicine, diagnosis or test was found in your files. You can add details by hand in the next step, or go back and add files or the samples.</p></div>`}`;
 }
 
 function itemLine(cat, it) {
@@ -430,7 +434,16 @@ export const onboardingPage = {
         if (!alive) return;
         if (tag && tag.traveler === p) { f.kind = tag.kind; f.status = 'done'; }
         else if (tag) { f.kind = tag.kind; f.status = 'other'; }
-        else { f.status = 'stored'; }
+        else {
+          // Not a sample: read it for real (PDF text layer or OCR) and match against the glossary.
+          const li0 = host.querySelector(`[data-fid="${f.id}"] [data-status]`);
+          try {
+            const r = await processDocument(file, { hint: travelerById(p)?.homeLang, onProgress: (label, pct) => { f.step = typeof pct === 'number' ? `${label} · ${Math.round(pct * 100)}%` : label; if (li0?.isConnected) li0.textContent = f.step; } });
+            if (!alive) return;
+            f.items = r.items; f.method = r.method; f.lang = r.lang || f.lang;
+            f.status = r.items.length ? 'read' : 'stored';
+          } catch (err) { f.status = 'failed'; f.error = err.message || 'unreadable'; }
+        }
         s.extracted = null; // new files invalidate a previous extraction
         const li = host.querySelector(`[data-fid="${f.id}"]`);
         if (li) li.outerHTML = fileRow(f);
@@ -461,6 +474,16 @@ export const onboardingPage = {
         }));
         if (data.blood) out.blood = data.blood;
       });
+      // Items read from the patient's own files, copied as written.
+      const CAT = { allergy: 'allergies', med: 'medications', condition: 'conditions', test: 'tests' };
+      s.files.filter((f) => f.status === 'read').forEach((f) => f.items.forEach((it) => {
+        const c = CAT[it.kind]; if (!c || out[c].some((x) => x.name.toLowerCase() === it.name.toLowerCase())) return;
+        const d = it.detail || '';
+        out[c].push(c === 'allergies' ? { name: it.name, reaction: d, severity: '', _src: 'read' }
+          : c === 'medications' ? { name: it.name, dose: d, schedule: '', _src: 'read' }
+          : c === 'conditions' ? { name: it.name, since: '', _src: 'read' }
+          : { name: it.name, value: d, _src: 'read' });
+      }));
       return out;
     }
     const chipsFor = (kind) => {
@@ -482,7 +505,9 @@ export const onboardingPage = {
         await wait(900);
         if (!alive) return;
         const out = el.querySelector('[data-out]');
-        for (const [ic, label] of chipsFor(f.kind)) {
+        const IC = { allergy: 'alert', med: 'rx', condition: 'heart', test: 'flask' };
+        const chips = f.kind ? chipsFor(f.kind) : f.items.map((it) => [IC[it.kind] || 'file', `${it.name}${it.detail ? ` · ${it.detail}` : ''}`]);
+        for (const [ic, label] of chips) {
           out.insertAdjacentHTML('beforeend', `<span class="xchip xchip--${ic}">${icon(ic)}${esc(label)}</span>`);
           await wait(260);
           if (!alive) return;
@@ -555,7 +580,7 @@ export const onboardingPage = {
       }
       if (el.matches('[data-next]')) {
         if (key === 'connect' && !s.connected) { runConnect(); return; }
-        if (key === 'upload' && !s.files.some((f) => f.status === 'done')) { s.extracted = buildExtraction(); go(s.step + 2); return; }
+        if (key === 'upload' && !s.files.some((f) => f.status === 'done' || f.status === 'read')) { s.extracted = buildExtraction(); go(s.step + 2); return; }
         if (key === 'permissions') { activate(); forget('onboarding'); go(s.step + 1); return; }
         if (key === 'done') { location.hash = '#/app'; return; }
         go(s.step + 1);

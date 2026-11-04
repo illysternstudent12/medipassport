@@ -11,8 +11,8 @@ import { toast } from './ui.js';
 import { langInfo, term } from '../translate/glossary.js';
 import { recordCard, summaryCard, currentFacts, criticalLines, fmtDate } from '../translate/records.js';
 import { patientLang as patientLangOf, doctorLang as doctorLangOf, setDoctorLang, ensureTranslated, engineFor } from '../translate/state.js';
-import { openLanguagePicker, openAiSettings } from '../translate/picker.js';
-import { aiOn, summarize } from '../translate/ai.js';
+import { openLanguagePicker } from '../translate/picker.js';
+import { aiOn, summaryOn, providerName, summarize } from '../translate/ai.js';
 import { recordsFor, factsForAi } from './documents.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -39,7 +39,7 @@ function body(t, lang, patientLang, narrative) {
       <div><h2>${crit.labels.allergies}</h2><p>${crit.allergies.length ? crit.allergies.join(' · ') : esc(term('none_recorded', lang) || 'None recorded')}</p></div>
     </section>
 
-    <p class="dv-verify" lang="${lang}" dir="${info.rtl ? 'rtl' : 'ltr'}">${icon('eye')}<span>${crit.labels.verify}${showEn ? `<small lang="en" dir="ltr">Medical translations require professional verification. ${eng === 'ai' ? 'Translated by live AI (Claude).' : 'Simulated translation from a reviewed glossary; no AI model was used.'}</small>` : ''}</span></p>
+    <p class="dv-verify" lang="${lang}" dir="${info.rtl ? 'rtl' : 'ltr'}">${icon('eye')}<span>${crit.labels.verify}${showEn ? `<small lang="en" dir="ltr">Medical translations require professional verification. ${eng === 'ai' ? `Machine-translated by ${esc(providerName())} where the glossary has no term.` : 'Translated from a reviewed medical glossary; no AI or translation service was used.'}</small>` : ''}</span></p>
 
     <div class="dv-sum">${summaryCard(t, lang, { engine: aiOn() && narrative ? 'ai' : 'sim', narrative })}</div>
 
@@ -97,7 +97,7 @@ export const appDoctor = {
           <button type="button" data-view="patient" aria-pressed="${viewing === 'patient'}"><small>Patient</small><span lang="${patientLang}">${esc(p.native)}</span></button>
         </div>
         <button type="button" class="dv-bar__pick" data-dvpick>${icon('translate')}<span>Change</span></button>
-        <button type="button" class="dv-bar__engine ${aiOn() ? 'is-ai' : ''}" data-ai-settings>${icon('sparkle')}<span>${aiOn() ? 'Live AI' : 'Simulated'}</span></button>`;
+        <a class="dv-bar__engine ${aiOn() ? 'is-ai' : ''}" href="#/app/setup" title="Connected services">${icon('sparkle')}<span>${aiOn() ? esc(providerName()) : 'Offline glossary'}</span></a>`;
     };
     const paint = () => {
       paintBar();
@@ -112,15 +112,15 @@ export const appDoctor = {
       paint();
       if (!aiOn()) return;
       try {
-        setStatus(`${icon('sparkle')} ${engineFor(lang) === 'ai' ? 'Translating with Claude…' : 'Preparing AI summary…'}`, 'is-busy');
+        setStatus(`${icon('sparkle')} ${engineFor(lang) === 'ai' ? `Translating with ${esc(providerName())}…` : 'Checking for text the glossary doesn’t cover…'}`, 'is-busy');
         const res = await ensureTranslated(recordsFor(t), lang);
         if (!alive || cur() !== lang) return;
-        narrative = await summarize(lang, langInfo(lang).name, factsForAi(t));
+        narrative = summaryOn() ? await summarize(lang, langInfo(lang).name, factsForAi(t)) : null;
         if (!alive || cur() !== lang) return;
         if (res === 'translated' || narrative) paint();
         setStatus('');
       } catch (err) {
-        setStatus(`${icon('alert')} ${esc(err.message || 'Live AI failed.')}`, 'is-error');
+        setStatus(`${icon('alert')} ${esc(err.message || 'Translation service failed.')} Showing what the offline glossary covers.`, 'is-error');
       }
     };
 
@@ -134,7 +134,6 @@ export const appDoctor = {
         });
         return;
       }
-      if (e.target.closest('[data-ai-settings]')) { openAiSettings(); return; }
       const flip = e.target.closest('[data-dvflip]');
       if (flip) {
         const box = flip.closest('[data-dvrec]');

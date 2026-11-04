@@ -10,7 +10,7 @@
 import { icon } from '../icons.js';
 import { term, termEn, isRtl, langInfo, SIM } from './glossary.js';
 import { TRAVELERS, getOnboarding } from '../app/data.js';
-import { aiCached, aiUncertain } from './ai.js';
+import { aiCached, aiUncertain, providerName } from './ai.js';
 
 /* ======================================================================= facts */
 const F = {
@@ -163,12 +163,20 @@ export function buildRecords(t, uploads = []) {
         id, kind: base.kind, source: 'upload', upload: u, sampleKind: u.kind,
         facts: factsFor(u.kind), banner: ['rx', 'medplan'].includes(u.kind) ? f.allergies : [],
       }, u.lang || meta.lang || 'en', { source: u.langSource || 'detected', confidence: u.langConf || 'medium' }));
+    } else if (u.read) {
+      // Read by the real pipeline (pdf.js / OCR → glossary or AI extraction), reviewed by the patient.
+      recs.unshift(withLang({
+        id: u.id, kind: 'upload', title: null, titleText: u.read.title || u.name, issuer: u.read.issuer || '', clinician: '', date: u.read.date || '',
+        source: u.read.extraction === 'ai' ? 'ai' : 'read', upload: u, banner: [],
+        facts: (u.read.items || []).map((x) => ({ kind: x.kind, code: x.code, text: { name: x.name, detail: x.detail || '' }, edited: x.edited })),
+      }, u.lang || null, { source: u.langSource || (u.lang ? 'detected' : 'unknown'), confidence: u.langConf || 'medium' }));
     } else if (u.ai) {
+      const tx = (x) => ({ name: String(x), detail: '' });
       recs.unshift(withLang({
         id: u.id, kind: 'upload', title: null, titleText: u.ai.title || u.name, issuer: u.ai.issuer || '', clinician: '', date: u.ai.date || '',
         source: 'ai', upload: u, banner: [],
-        facts: [...(u.ai.allergies || []).map((x) => ({ kind: 'allergy', text: x })), ...(u.ai.medications || []).map((x) => ({ kind: 'med', text: x })),
-          ...(u.ai.conditions || []).map((x) => ({ kind: 'condition', text: x })), ...(u.ai.tests || []).map((x) => ({ kind: 'test', text: x }))],
+        facts: [...(u.ai.allergies || []).map((x) => ({ kind: 'allergy', text: tx(x) })), ...(u.ai.medications || []).map((x) => ({ kind: 'med', text: tx(x) })),
+          ...(u.ai.conditions || []).map((x) => ({ kind: 'condition', text: tx(x) })), ...(u.ai.tests || []).map((x) => ({ kind: 'test', text: tx(x) }))],
       }, (u.ai.lang || u.lang || 'en').split('-')[0], { source: 'ai', confidence: 'high' }));
     } else {
       recs.unshift(withLang({ id: u.id, kind: 'upload', title: null, titleText: u.name, issuer: '', clinician: '', date: '', source: 'stored', upload: u, facts: [], banner: [] },
@@ -185,6 +193,8 @@ export function resolve(seg, lang, origLang) {
   if (!seg) return null;
   if (seg.raw !== undefined) {
     if (!lang || lang === origLang) return { text: seg.raw, src: 'orig' };
+    // Text matched to a glossary term: translate the term offline, never the rest.
+    if (seg.k) { const g = term(seg.k, lang); if (g !== null) return { text: g, src: 'gloss' }; }
     const ai = aiCached(lang, seg.raw);
     return ai ? { text: ai, src: 'ai', unsure: aiUncertain(lang, seg.raw) } : { text: seg.raw, src: 'raw' };
   }
@@ -200,7 +210,7 @@ export function sourceStrings(recs, lang) {
   const out = new Set();
   const visit = (seg) => {
     if (!seg || seg.lit !== undefined) return;
-    if (seg.raw !== undefined) { if (seg.raw) out.add(seg.raw); return; }
+    if (seg.raw !== undefined) { if (seg.raw && !(seg.k && term(seg.k, lang) !== null)) out.add(seg.raw); return; }
     if (seg.k && term(seg.k, lang, seg.p) === null) out.add(termEn(seg.k, seg.p));
   };
   recs.forEach((r) => {
@@ -221,7 +231,7 @@ function fixed(n, d, lang) {
 
 /** Segments per display row: [labelSeg, valueSeg, subSeg?]. Numbers are pre-rendered raw-safe. */
 function factSegments(f, lang) {
-  if (f.text) return [[{ k: { allergy: 'allergy', med: 'medications', condition: 'diagnoses', test: 'result' }[f.kind] }, { raw: f.text.name }, f.text.detail ? { raw: f.text.detail } : null]];
+  if (f.text) return [[{ k: { allergy: 'allergy', med: 'medications', condition: 'diagnoses', test: 'result' }[f.kind] }, f.code ? { raw: f.text.name, k: f.code } : { raw: f.text.name }, f.text.detail ? { raw: f.text.detail } : null]];
   if (f.kind === 'allergy') {
     return [
       [{ k: 'allergy' }, { k: f.name }],
@@ -255,7 +265,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 function seg(s, lang, origLang) {
   if (!s) return '';
   if (s.lit !== undefined) return `<bdi>${esc(s.lit)}</bdi>`;
-  const r = resolve(s.k ? { k: s.k, p: s.p } : s, lang, origLang);
+  const r = resolve(s.k && s.raw === undefined ? { k: s.k, p: s.p } : s, lang, origLang);
   const text = `${s.prefix ? s.prefix : ''}${r.text}${s.suffix || ''}`;
   if (r.src === 'raw') return `<span class="seg seg--raw" lang="und" title="${esc(term('not_translated', lang) || 'Not translated · shown as written')}">${esc(text)}<i class="seg__flag" aria-hidden="true">${icon('alert')}</i></span>`;
   if (r.src === 'pending') return `<span class="seg seg--pending" lang="en">${esc(text)}</span>`;
@@ -328,7 +338,7 @@ export function recordCard(rec, t, lang, { variant = 'translation', engine = 'si
   const pending = !isOrig && sourceStrings([rec], lang).some((x) => !aiCached(lang, x));
   const badge = isOrig ? `<span class="rbadge rbadge--orig">${icon('file')} ${L('original', lang)} · ${esc(langInfo(lang).native)}</span>`
     : pending && !SIM.includes(lang) ? `<span class="rbadge rbadge--pending" lang="en">${icon('clock')} Not translated yet</span>`
-    : engine === 'ai' ? `<span class="rbadge rbadge--ai">${icon('sparkle')} Live AI · Claude</span>`
+    : engine === 'ai' ? `<span class="rbadge rbadge--ai" lang="en">${icon('sparkle')} ${esc(providerName())} · AI</span>`
     : `<span class="rbadge rbadge--sim">${icon('sparkle')} ${L('simulated', lang)}</span>`;
   return `<article class="rcard rcard--${rec.kind} ${isOrig ? 'rcard--orig' : ''}" lang="${lang}" dir="${dir}">
     <header class="rcard__head">
@@ -368,7 +378,7 @@ export function summaryCard(t, lang, { engine = 'sim', narrative = null, section
   const allOk = f.tests.length && f.tests.every((x) => x.text || x.status === 'in_range' || x.status === 'in_target');
   return `<article class="scard" lang="${lang}" dir="${dir}">
     <header class="scard__head">
-      <div><span class="scard__eyebrow">${engine === 'ai' && narrative ? `${icon('sparkle')} AI-generated · Claude` : `${icon('sparkle')} Compiled from records · simulated`}</span>
+      <div><span class="scard__eyebrow">${engine === 'ai' && narrative ? `${icon('sparkle')} AI-generated · Claude` : `${icon('sparkle')} Compiled from records · no AI`}</span>
       <h3 class="scard__title">${L('doctor_title', lang)}</h3></div>
       <span class="scard__blood"><small>${L('blood', lang)}</small><b><bdi>${esc(f.blood)}</bdi></b></span>
     </header>

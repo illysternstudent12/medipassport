@@ -91,7 +91,7 @@ export function normalize(elements) {
 }
 
 /* ---------------------------------------------------------------- fetch */
-const query = (lat, lng, r) => `[out:json][timeout:25];(nwr["amenity"~"^(hospital|clinic|doctors)$"](around:${r},${lat},${lng});nwr["healthcare"~"^(hospital|clinic|doctor|centre)$"](around:${r},${lat},${lng}););out center tags;`;
+const query = (lat, lng, r) => `[out:json][timeout:30];(nwr["amenity"~"^(hospital|clinic|doctors)$"](around:${r},${lat},${lng});nwr["healthcare"~"^(hospital|clinic|doctor|centre)$"](around:${r},${lat},${lng}););out center tags;`;
 
 function readCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch { return {}; } }
 function writeCache(c) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch { /* quota */ } }
@@ -106,7 +106,7 @@ export async function fetchLive(lat, lng, radius = 3000, { signal } = {}) {
   let lastErr = null;
   for (let i = 0; i < ENDPOINTS.length; i++) {
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 15000);
+    const timer = setTimeout(() => ctl.abort(), 35000); // busy public servers can take ~30 s
     signal?.addEventListener('abort', () => ctl.abort());
     try {
       const res = await fetch(ENDPOINTS[i], { method: 'POST', body, signal: ctl.signal });
@@ -188,3 +188,38 @@ export function openStatus(hours, tz) {
 }
 
 export const TYPE_LABEL = { er: 'Emergency room', hospital: 'Hospital', clinic: 'Clinic', doctor: 'Doctor' };
+
+/* ---------------------------------------------------------------- place search (Nominatim) */
+// Manual location search for when location permission is denied or the
+// traveler wants another area. Per the Nominatim usage policy: one request per
+// explicit search (no autocomplete), at most one per second, with attribution.
+const COUNTRY_TZ = {
+  jp: 'Asia/Tokyo', es: 'Europe/Madrid', pt: 'Europe/Lisbon', fr: 'Europe/Paris', de: 'Europe/Berlin', it: 'Europe/Rome', gb: 'Europe/London',
+  ie: 'Europe/Dublin', nl: 'Europe/Amsterdam', be: 'Europe/Brussels', ch: 'Europe/Zurich', at: 'Europe/Vienna', gr: 'Europe/Athens', tr: 'Europe/Istanbul',
+  il: 'Asia/Jerusalem', ae: 'Asia/Dubai', in: 'Asia/Kolkata', th: 'Asia/Bangkok', sg: 'Asia/Singapore', kr: 'Asia/Seoul', cn: 'Asia/Shanghai',
+  hk: 'Asia/Hong_Kong', tw: 'Asia/Taipei', vn: 'Asia/Ho_Chi_Minh', id: 'Asia/Jakarta', ph: 'Asia/Manila', eg: 'Africa/Cairo', ma: 'Africa/Casablanca',
+  za: 'Africa/Johannesburg', ke: 'Africa/Nairobi', nz: 'Pacific/Auckland', mx: 'America/Mexico_City', ar: 'America/Argentina/Buenos_Aires',
+  pe: 'America/Lima', co: 'America/Bogota', cl: 'America/Santiago', cz: 'Europe/Prague', pl: 'Europe/Warsaw', hu: 'Europe/Budapest',
+  se: 'Europe/Stockholm', no: 'Europe/Oslo', dk: 'Europe/Copenhagen', fi: 'Europe/Helsinki', is: 'Atlantic/Reykjavik', hr: 'Europe/Zagreb',
+};
+let lastGeo = 0;
+export async function geocode(q) {
+  const wait = 1100 - (Date.now() - lastGeo);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastGeo = Date.now();
+  const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({ q, format: 'jsonv2', limit: '5', addressdetails: '1', 'accept-language': 'en' })}`;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 12000);
+  let res;
+  try { res = await fetch(url, { signal: ctl.signal, headers: { Accept: 'application/json' } }); }
+  catch { throw new Error('Place search didn’t answer. Check your connection and try again.'); }
+  finally { clearTimeout(timer); }
+  if (res.status === 429) throw new Error('Place search is rate-limited (free service). Wait a moment and try again.');
+  if (!res.ok) throw new Error(`Place search failed (HTTP ${res.status}).`);
+  const rows = await res.json();
+  return rows.map((r) => {
+    const cc = r.address?.country_code;
+    const parts = r.display_name.split(', ');
+    return { lat: +r.lat, lng: +r.lon, name: r.name || parts[0], area: parts.slice(1, 4).join(', '), country: r.address?.country || '', tz: COUNTRY_TZ[cc] || null };
+  });
+}

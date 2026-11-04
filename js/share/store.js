@@ -1,6 +1,11 @@
 // Secure sharing (Batch 6): shares, access tokens, activity history,
 // claim authorizations and emergency-assistance requests.
 //
+// Two kinds of share:
+//  · server-verified (signed in to the Supabase backend): the link holds only a
+//    random token; the share-open Edge Function checks code, expiry and
+//    revocation on every request, from any device, and logs each attempt.
+//  · demo (no backend): see the limits below.
 // DEMO LIMITS (shown in the UI): there is no server. A share's token travels
 // in the link itself, so a link opened on another device enforces only its
 // expiry. Revocation and activity history are kept in this browser's storage.
@@ -46,7 +51,7 @@ export function decodeToken(tok) {
 export function shareUrl(sh) {
   const local = /^(localhost|127\.|10\.|192\.168\.)/.test(location.hostname);
   const base = local ? `${location.origin}${location.pathname}` : LIVE_BASE;
-  return `${base}#/portal?s=${tokenFor(sh)}`;
+  return sh.remote ? `${base}#/portal?t=${sh.remote.token}` : `${base}#/portal?s=${tokenFor(sh)}`;
 }
 
 /* ---------------------------------------------------------------- shares */
@@ -78,6 +83,7 @@ export function createShare(o) {
     createdAt: now, expiresAt: now + d.ms, duration: d.key, code: code4(),
     label: o.label || (o.recipient === 'insurer' ? 'Claim review' : 'Treating doctor'),
     claimRef: o.claimRef || '', revokedAt: null,
+    ...(o.remote ? { id: o.remote.id, code: o.remote.code, remote: { id: o.remote.id, token: o.remote.token }, expiresAt: o.remote.expiresAt } : {}),
   };
   write(SHARES, [...allShares(), sh]);
   logEvent(sh.id, 'created', `${d.label} · ${sh.docs.length} document${sh.docs.length === 1 ? '' : 's'}`);

@@ -15,6 +15,8 @@ import {
 } from '../share/store.js';
 import { qrSvg } from '../share/qr.js';
 import { remember, recall } from '../nav.js';
+import { isConfigured, currentUser, saveProfile, createRemoteShare, revokeRemoteShare, remoteShareEvents } from '../backend/supabase.js';
+import { refreshServices, shareOn } from '../translate/ai.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const left = (ms) => {
@@ -71,13 +73,14 @@ function builder(t, recs, st) {
   </section>`;
 }
 
+const remoteEv = new Map(); // share id → events from the server (doctor opens, wrong codes…)
 function shareRow(sh) {
   const s = statusOf(sh);
-  const ev = eventsFor(sh.id);
+  const ev = [...(remoteEv.get(sh.id) || []), ...eventsFor(sh.id)].sort((a, b) => b.at - a.at);
   return `<li class="srow srow--${s}" data-share="${sh.id}">
     <button type="button" class="srow__main" data-open-share="${sh.id}">
       <span class="srow__ic">${icon(sh.recipient === 'insurer' ? 'umbrella' : 'heart')}</span>
-      <span class="srow__txt"><b>${esc(sh.label)}${sh.claimRef ? ` · ${esc(sh.claimRef)}` : ''}</b><small>${sh.docs.length} document${sh.docs.length === 1 ? '' : 's'} · created ${when(sh.createdAt)}</small></span>
+      <span class="srow__txt"><b>${esc(sh.label)}${sh.claimRef ? ` · ${esc(sh.claimRef)}` : ''}</b><small>${sh.docs.length} document${sh.docs.length === 1 ? '' : 's'} · created ${when(sh.createdAt)} · ${sh.remote ? 'server-verified' : 'demo link'}</small></span>
       <span class="sstat sstat--${s}">${s === 'active' ? `<span data-left="${sh.expiresAt}">${left(sh.expiresAt - Date.now())}</span>` : s === 'revoked' ? 'Revoked' : 'Expired'}</span>
     </button>
     <details class="srow__log"><summary>Activity · ${ev.length}</summary>
@@ -105,7 +108,9 @@ function resultCard(sh) {
         : `<a class="wbtn wbtn--line" href="${esc(url)}" target="_blank" rel="noopener">${icon('eye')} Preview doctor portal</a>`}
       ${s === 'active' ? `<button type="button" class="wbtn sres__revoke" data-revoke="${sh.id}">${icon('close')} Revoke now</button>` : ''}
     </div>
-    <p class="sres__demo">${icon('sparkle')} Simulated security for the demo: the access code and the share’s scope travel inside the link. Expiry is enforced anywhere; revocation and activity are tracked in this browser. A production system checks every request on a server.</p>
+    ${sh.remote
+    ? `<p class="sres__demo sres__demo--live">${icon('shield')} Server-verified: the link holds only a random token. The code is checked by the MediPassport backend, which enforces expiry and revocation on every device and logs every attempt. Five wrong codes lock the link for 15 minutes. Clinician identity is not verified (no licence registry is connected).</p>`
+    : `<p class="sres__demo">${icon('sparkle')} Demo link: the access code and the share’s scope travel inside the link. Expiry is enforced anywhere; revocation and activity are tracked in this browser only. Sign in under <a href="#/app/setup">Connected services</a> for server-verified, revocable shares.</p>`}
   </section>`;
 }
 
@@ -118,6 +123,7 @@ export const appShare = {
       <section class="shero">
         <h1 class="shero__h">Share on<br/><span class="serif">your terms.</span></h1>
         <p class="shero__sub">Choose who, what and for how long. Every share expires, and you can end it any time.</p>
+        <p class="smode" data-mode aria-live="polite">${icon('clock')} <span>Checking sharing mode…</span></p>
       </section>
       <div class="slayout">
         <div data-build-slot></div>
@@ -129,14 +135,17 @@ export const appShare = {
           </section>
         </div>
       </div>
-      <p class="app-note">Fictional traveler · simulated authentication · not medical advice</p>
+      <p class="app-note">Fictional traveler · clinician identity not verified · not medical advice</p>
     `, t);
   },
   mount(root) {
     const t = currentTraveler();
     const off = [mountShell(root)];
     // Home records + uploaded sample documents (they can be rebuilt on any device). Live-AI uploads stay on this device.
-    const recs = buildRecords(t, getUploads(t)).filter((r) => r.source === 'home' || r.source === 'upload');
+    const ups = getUploads(t);
+    let remote = false; // signed in + share-open deployed → server-verified shares
+    const shareable = () => buildRecords(t, ups).filter((r) => r.source === 'home' || r.source === 'upload' || (remote && r.upload?.remote));
+    let recs = shareable();
     const quick = /[?&]quick/.test(location.hash);
     const st = {
       recipient: 'doctor', docs: recs.map((r) => r.id), sections: ['medications', 'conditions', 'tests'],
@@ -184,18 +193,31 @@ export const appShare = {
         openLanguagePicker({ current: st.lang, title: 'Doctor’s language', suggested: [t.trip.lang, 'en'], onPick: (c) => { st.lang = c; renderBuilder(); } });
         return;
       }
-      if (e.target.closest('[data-create]')) {
-        const sh = createShare({ traveler: t.id, recipient: st.recipient, docs: st.docs, sections: st.sections, lang: st.recipient === 'doctor' ? st.lang : 'en', patientLang: patientLang(t), duration: st.duration, claimRef: st.recipient === 'insurer' ? st.claimRef : '' });
-        st.shown = sh.id;
-        renderResult(); renderList();
-        toast(st.recipient === 'insurer' ? 'Documents authorized for this claim only.' : 'Secure access created.');
-        resSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const cb = e.target.closest('[data-create]');
+      if (cb) {
+        cb.disabled = true;
+        make({ recipient: st.recipient, docs: st.docs, sections: st.sections, lang: st.recipient === 'doctor' ? st.lang : 'en', duration: st.duration, claimRef: st.recipient === 'insurer' ? st.claimRef : '' })
+          .then((sh) => {
+            st.shown = sh.id;
+            renderResult(); renderList();
+            toast(st.recipient === 'insurer' ? 'Documents authorized for this claim only.' : sh.remote ? 'Server-verified access created.' : 'Demo access created.');
+            resSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          })
+          .catch((err) => toast(`Couldn’t create the share: ${err.message}`))
+          .finally(() => { cb.disabled = false; });
         return;
       }
       const o = e.target.closest('[data-open-share]');
       if (o) { st.shown = o.dataset.openShare; renderResult(); resSlot.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       const rv = e.target.closest('[data-revoke]');
-      if (rv) { revokeShare(rv.dataset.revoke); renderResult(); renderList(); toast('Access revoked.'); return; }
+      if (rv) {
+        const sh = getShare(rv.dataset.revoke);
+        rv.disabled = true;
+        (sh?.remote ? revokeRemoteShare(sh.remote.id) : Promise.resolve())
+          .then(() => { revokeShare(rv.dataset.revoke); renderResult(); renderList(); toast(sh?.remote ? 'Access revoked on the server. The link stops working everywhere.' : 'Access revoked.'); })
+          .catch((err) => { rv.disabled = false; toast(`Couldn’t revoke on the server: ${err.message}. Try again.`); });
+        return;
+      }
       if (e.target.closest('[data-copy]')) {
         const inp = resSlot.querySelector('[data-url]');
         (navigator.clipboard?.writeText(inp.value) || Promise.reject()).then(() => toast('Link copied.')).catch(() => { inp.select(); toast('Select and copy the link.'); });
@@ -221,17 +243,55 @@ export const appShare = {
     const onStorage = (e) => { if (!e.key || e.key.startsWith('mp.share')) { renderList(); if (st.shown) renderResult(); } };
     window.addEventListener('storage', onStorage);
 
-    renderBuilder(); renderList();
-    if (quick) {
-      // From "I need medical help": all records, all sections, local language, 1 hour.
-      st.lang = t.trip.lang;
-      const sh = createShare({ traveler: t.id, recipient: 'doctor', docs: recs.map((r) => r.id), sections: SECTIONS.map((x) => x.key), lang: t.trip.lang, patientLang: patientLang(t), duration: '1h', label: 'Emergency · treating doctor' });
-      st.shown = sh.id; renderResult(); renderList();
-      toast('Emergency access created for 1 hour.');
-    } else {
-      const active = sharesFor(t.id).find((s) => statusOf(s) === 'active');
-      if (active) { st.shown = active.id; renderResult(); }
+    /** Create a share: server-verified when signed in, otherwise a demo link. */
+    async function make(o) {
+      const base = { traveler: t.id, patientLang: patientLang(t), ...o };
+      if (!remote) return createShare(base);
+      await saveProfile(t); // the server serves the profile the patient keeps in their account
+      const d = DURATIONS.find((x) => x.key === o.duration) || DURATIONS[0];
+      const expiresAt = Date.now() + d.ms;
+      const docs = o.docs.map((id) => ups.find((u) => u.id === id)?.remote?.id || id);
+      const sections = o.recipient === 'doctor' ? [...new Set(['allergies', ...o.sections])] : [];
+      const r = await createRemoteShare({ scope: { traveler: t.id, recipient: o.recipient, docs, sections, lang: o.lang, patientLang: base.patientLang }, expiresAt, label: o.label || (o.recipient === 'insurer' ? 'Claim review' : 'Treating doctor') });
+      return createShare({ ...base, remote: { ...r, expiresAt } });
     }
-    return () => { off.forEach((f) => f?.()); clearInterval(tick); window.removeEventListener('storage', onStorage); };
+    const pullEvents = async () => {
+      if (!remote) return;
+      const mine = sharesFor(t.id).filter((s) => s.remote).slice(0, 10);
+      await Promise.all(mine.map(async (s) => {
+        try { remoteEv.set(s.id, (await remoteShareEvents(s.remote.id)).map((e) => ({ type: e.type, detail: `${e.detail || ''} · server log`, at: Date.parse(e.at) }))); } catch { /* keep last */ }
+      }));
+      if (alive) renderList();
+    };
+    let alive = true;
+
+    const start = async () => {
+      const user = isConfigured() ? await currentUser() : null;
+      if (user) { await refreshServices(); remote = shareOn(); }
+      if (!alive) return;
+      recs = shareable();
+      if (remote && !draft) st.docs = recs.map((r) => r.id);
+      root.querySelector('[data-mode]').innerHTML = remote
+        ? `${icon('shield')} <span><b>Server-verified sharing</b> · signed in as ${esc(user.email)}. Links work on any device and stop the moment you revoke them.</span>`
+        : `${icon('sparkle')} <span><b>Demo sharing</b> · ${user ? 'the share-open function isn’t deployed' : 'not signed in'}. <a href="#/app/setup">Connected services</a></span>`;
+      renderBuilder(); renderList();
+      if (quick) {
+        // From "I need medical help": all records, all sections, local language, 1 hour.
+        st.lang = t.trip.lang;
+        try {
+          const sh = await make({ recipient: 'doctor', docs: recs.map((r) => r.id), sections: SECTIONS.map((x) => x.key), lang: t.trip.lang, duration: '1h', label: 'Emergency · treating doctor' });
+          st.shown = sh.id; renderResult(); renderList();
+          toast('Emergency access created for 1 hour.');
+        } catch (err) { toast(`Couldn’t create the share: ${err.message}`); }
+      } else {
+        const active = sharesFor(t.id).find((s) => statusOf(s) === 'active');
+        if (active) { st.shown = active.id; renderResult(); }
+      }
+      pullEvents();
+    };
+    renderBuilder(); renderList();
+    start();
+    const evTimer = setInterval(pullEvents, 20000);
+    return () => { alive = false; off.forEach((f) => f?.()); clearInterval(tick); clearInterval(evTimer); window.removeEventListener('storage', onStorage); };
   },
 };

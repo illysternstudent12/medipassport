@@ -74,7 +74,7 @@ const TERMS = {
   key_result: ['Key result', 'Resultado clave', 'Résultat clé', 'Wichtiger Befund', 'Risultato chiave', 'Resultado-chave', 'תוצאה מרכזית', 'نتيجة رئيسية', '重要な結果', '关键结果', '주요 결과', 'Ключевой результат'],
   not_recorded: ['Not recorded', 'No consta', 'Non renseigné', 'Nicht dokumentiert', 'Non registrato', 'Não registado', 'לא תועד', 'غير مسجل', '記録なし', '未记录', '기록 없음', 'Не указано'],
   not_translated: ['Not translated · shown as written', 'No traducido · se muestra tal como está escrito', 'Non traduit · affiché tel quel', 'Nicht übersetzt · wie eingegeben', 'Non tradotto · mostrato come scritto', 'Não traduzido · apresentado como escrito', 'לא תורגם · מוצג כפי שנכתב', 'غير مترجم · معروض كما كُتب', '未翻訳 · 原文のまま', '未翻译 · 按原文显示', '번역되지 않음 · 원문 그대로', 'Не переведено · как в оригинале'],
-  simulated: ['Simulated translation', 'Traducción simulada', 'Traduction simulée', 'Simulierte Übersetzung', 'Traduzione simulata', 'Tradução simulada', 'תרגום מדומה', 'ترجمة محاكاة', 'シミュレーション翻訳', '模拟翻译', '시뮬레이션 번역', 'Имитация перевода'],
+  simulated: ['Glossary translation', 'Traducción por glosario', 'Traduction par glossaire', 'Glossar-Übersetzung', 'Traduzione da glossario', 'Tradução por glossário', 'תרגום ממילון מונחים', 'ترجمة من مسرد المصطلحات', '用語集による翻訳', '术语表翻译', '용어집 번역', 'Перевод по глоссарию'],
   verify: [
     'Medical translation requires verification by a qualified professional.',
     'La traducción médica debe ser verificada por un profesional cualificado.',
@@ -194,3 +194,7 @@ export function fmtNum(n, lang) {
     return String(n);
   }
 }
+
+/** Every language variant of a term (used to recognise terms in documents). */
+export const termVariants = (key) => (TERMS[key] || []).slice();
+export const SIM_INDEX = IDX;

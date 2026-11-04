@@ -1,0 +1,92 @@
+/* Batch 6.7 · Connected services, document review, location search */
+
+/* ---------- profile tile */
+.ptile--gray { background: var(--warm-gray, #D4CBC5); }
+.ptile--wide { grid-column: 1 / -1; min-height: 120px; }
+
+/* ---------- services screen */
+.svc-sec { margin-top: 1.75rem; }
+.svc-list { display: grid; padding: 0.25rem 1rem; border-radius: 22px; background: var(--white); }
+.svc { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.8rem; align-items: center; padding: 0.85rem 0; }
+.svc + .svc { border-top: 1px solid var(--line); }
+.svc__ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 14px; background: var(--cream); grid-row: span 2; align-self: start; }
+.svc__ic svg { width: 19px; height: 19px; }
+.svc__txt { display: grid; line-height: 1.3; min-width: 0; }
+.svc__txt b { letter-spacing: -0.02em; }
+.svc__txt small { color: var(--muted); font-size: 0.82rem; }
+.svc__state { grid-column: 2; }
+.svc__st { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: var(--r-pill); font-size: 0.78rem; font-weight: 700; line-height: 1.25; }
+.svc__st svg { width: 14px; height: 14px; flex: none; }
+.svc__st--ok { background: var(--mint); }
+.svc__st--off { background: var(--peach); }
+.svc__st--busy { background: var(--cream); color: var(--ink-2); }
+.svc__st--sim { background: var(--warm-gray, #D4CBC5); }
+@media (min-width: 640px) {
+  .svc { grid-template-columns: auto 1fr auto; }
+  .svc__ic { grid-row: auto; align-self: center; }
+  .svc__state { grid-column: auto; justify-self: end; text-align: end; max-width: 22ch; }
+}
+.svc-form { display: grid; gap: 0.75rem; margin-top: 0.75rem; padding: 1rem; border-radius: 22px; background: var(--white); }
+.svc-form label { display: grid; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; }
+.svc-form input, .rv-field input, .rv-field select, .rv-item select, .rv-item input, .locsearch input {
+  width: 100%; min-height: 44px; padding: 0.6rem 0.8rem; border-radius: 14px; border: 0; background: var(--cream);
+  box-shadow: inset 0 0 0 1px var(--line); font: inherit; font-weight: 500; color: var(--ink);
+}
+.svc-form input:focus-visible, .rv-field :is(input, select):focus-visible, .rv-item :is(input, select):focus-visible, .locsearch input:focus-visible { outline: 2px solid var(--black); outline-offset: 1px; }
+.svc-hint { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.85rem; color: var(--ink-2); line-height: 1.4; }
+.svc-hint svg { width: 16px; height: 16px; flex: none; margin-top: 0.15rem; }
+.svc-hint a { text-decoration: underline; }
+.svc-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+.svc-more { margin-top: 0.75rem; }
+.svc-more summary { cursor: pointer; font-weight: 700; padding: 0.5rem 0; }
+.svc-clear { margin-top: 0.75rem; }
+.svc-sec > .svc-hint { margin-top: 0.75rem; }
+
+/* ---------- document review sheet */
+.rv { display: grid; gap: 0.9rem; }
+.rv-field { display: grid; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; }
+.rv-field small { font-weight: 500; color: var(--muted); margin-left: 0.35rem; }
+.rv-h { font-size: 1.05rem; letter-spacing: -0.03em; margin-top: 0.25rem; }
+.rv-note { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.75rem 0.9rem; border-radius: 14px; background: var(--white); font-size: 0.88rem; line-height: 1.4; }
+.rv-note svg { width: 16px; height: 16px; flex: none; margin-top: 0.15rem; }
+.rv-note.is-warn { background: var(--peach); }
+.rv-list { display: grid; gap: 0.5rem; }
+.rv-item { display: grid; grid-template-columns: auto 1fr auto; gap: 0.6rem; align-items: start; padding: 0.75rem; border-radius: 18px; background: var(--white); }
+.rv-item__ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--mint); }
+.rv-item__ic svg { width: 17px; height: 17px; }
+.rv-item__fields { display: grid; gap: 0.4rem; min-width: 0; }
+.rv-item__src { color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+.rv-item__x { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line); }
+.rv-item__x svg { width: 15px; height: 15px; }
+.rv-add { justify-self: start; }
+.rv-text summary { cursor: pointer; font-weight: 700; font-size: 0.88rem; padding: 0.4rem 0; }
+.rv-text pre { max-height: 220px; overflow: auto; padding: 0.75rem; border-radius: 14px; background: var(--white); font-size: 0.78rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rv-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+
+/* ---------- map: manual location search */
+.locsearch { display: flex; gap: 0.5rem; align-items: center; }
+.locsearch label { flex: 1; position: relative; }
+.locsearch label svg { position: absolute; left: 0.75rem; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); opacity: 0.55; pointer-events: none; }
+.locsearch input { padding-left: 2.3rem; background: var(--white); }
+.locres { display: grid; gap: 0.35rem; margin-top: 0.5rem; }
+.locres button { display: grid; text-align: start; padding: 0.7rem 0.9rem; border-radius: 14px; background: var(--white); line-height: 1.3; min-height: 44px; }
+.locres button:hover { background: var(--mint-soft); }
+.locres small { color: var(--muted); font-size: 0.8rem; }
+.locres__note { font-size: 0.78rem; color: var(--muted); }
+.locres__note a { text-decoration: underline; }
+.mp-where { flex: none; padding: 0 0.75rem 0.75rem; }
+.mp-where .locres { max-height: 40vh; overflow-y: auto; }
+[data-snap="peek"] .mp-where { display: none; }
+@media (min-width: 960px) { .mp-where { padding: 0 1rem 0.9rem; } [data-snap="peek"] .mp-where { display: block; } }
+
+/* ---------- sharing mode */
+.smode { display: inline-flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.9rem; padding: 0.6rem 0.9rem; border-radius: 16px; background: var(--white); font-size: 0.88rem; line-height: 1.4; max-width: 60ch; }
+.smode svg { width: 16px; height: 16px; flex: none; margin-top: 0.15rem; }
+.smode a, .sres__demo a { text-decoration: underline; }
+.sres__demo--live { background: var(--mint); }
+.pt-gate__ph--lock { display: grid; place-items: center; background: var(--mint); }
+.pt-gate__ph--lock svg { width: 34px; height: 34px; }
+.pt-sim--live { background: var(--mint); }
+.pt-orig { margin-top: 0.75rem; }
+.pt-orig__note { display: block; margin-top: 0.35rem; color: var(--muted); font-size: 0.8rem; }
+.locres[hidden] { display: none; }
