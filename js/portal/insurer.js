@@ -25,6 +25,12 @@ const ASSIST_STATE = 'mp.insurer.assist';
 const LICENSE_FEE = 3.9; // € per policyholder per year (fictional demo pricing)
 const MONTHS = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
 const ORGS = {
+  sternweg: {
+    insurer: INSURERS.DE.find((i) => i.id === 'sternweg'), country: 'Germany', enrolled: 14260, connected: 13870, renews: '1 Jan 2027',
+    active: [4210, 4630, 5480, 6120, 7390, 8040, 7310, 7655],
+    people: [['Mia Schneider', 'Welt Komfort', 'IT', 'Active'], ['Felix Wagner', 'Welt Basis', 'TH', 'Active'], ['Hannah Fischer', 'Langzeit Ausland', 'AU', 'Invited'], ['Jonas Weber', 'Welt Komfort', 'US', 'Active'], ['Lea Hoffmann', 'Welt Basis', 'ES', 'Not activated']],
+    assists: [['Felix Wagner', 'Phuket, Thailand', 6.5, 'Resolved']],
+  },
   solstice: {
     insurer: INSURERS.IL.find((i) => i.id === 'solstice'), country: 'Israel', enrolled: 18420, connected: 17988, renews: '1 Mar 2027',
     active: [6120, 7040, 8210, 9480, 11630, 12890, 11240, 11906],

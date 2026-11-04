@@ -16,6 +16,10 @@ export const HelpButton = (cls = '') => `<a class="helpbtn ${cls}" href="#/app/e
 
 export function openCallSheet(t) {
   const n = t.trip.emergency;
+  if (!n) {
+    openSheet({ title: 'Call emergency services', tone: 'alert', html: `<div class="callsheet"><p class="callsheet__demo">${icon('alert')} <span><b>We don’t know the emergency number for ${esc(t.trip.country || 'this place')}.</b> Ask anyone nearby, or call your insurer’s 24/7 assistance line. 112 works in many countries from mobile phones.</span></p></div>` });
+    return;
+  }
   openSheet({
     title: 'Call emergency services',
     tone: 'alert',

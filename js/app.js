@@ -15,6 +15,7 @@ import { appShare } from './app/share.js';
 import { doctorPortal } from './portal/doctor.js';
 import { insurerConsole } from './portal/insurer.js';
 import { appSetup } from './app/setup.js';
+import { tourPage, initTour } from './tour.js';
 import { refreshServices, services } from './translate/ai.js';
 
 renderHeader(document.getElementById('site-header'));
@@ -38,6 +39,7 @@ createRouter({
     '/app/map': mapScreen,
     '/app/share': appShare,
     '/app/setup': appSetup,
+    '/tour': tourPage,
     '/portal': doctorPortal,
     '/insurer': insurerConsole,
   },
@@ -49,6 +51,8 @@ createRouter({
     document.body.classList.toggle('is-onboarding', path === '/get-started');
   },
 }).start();
+
+initTour();
 
 // Ask the backend (if one is configured) which services are live, once per
 // session. If the answer changes what screens can do, re-render the current one.

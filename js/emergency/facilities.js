@@ -207,6 +207,11 @@ const COUNTRY_TZ = {
   pe: 'America/Lima', co: 'America/Bogota', cl: 'America/Santiago', cz: 'Europe/Prague', pl: 'Europe/Warsaw', hu: 'Europe/Budapest',
   se: 'Europe/Stockholm', no: 'Europe/Oslo', dk: 'Europe/Copenhagen', fi: 'Europe/Helsinki', is: 'Atlantic/Reykjavik', hr: 'Europe/Zagreb',
 };
+// Emergency (ambulance) numbers, only where we're certain. Unknown → the app
+// says "local emergency number" instead of guessing.
+const EU112 = 'at be bg hr cy cz dk ee fi fr de gr hu ie it lv lt lu mt nl pl pt ro sk si es se is no ch tr'.split(' ');
+const EMERGENCY = { jp: '119', kr: '119', tw: '119', us: '911', ca: '911', gb: '999', au: '000', nz: '111', cn: '120', hk: '999', sg: '995', il: '101', in: '112',
+  ...Object.fromEntries(EU112.map((c) => [c, '112'])) };
 let lastGeo = 0;
 export async function geocode(q) {
   const wait = 1100 - (Date.now() - lastGeo);
@@ -225,6 +230,6 @@ export async function geocode(q) {
   return rows.map((r) => {
     const cc = r.address?.country_code;
     const parts = r.display_name.split(', ');
-    return { lat: +r.lat, lng: +r.lon, name: r.name || parts[0], area: parts.slice(1, 4).join(', '), country: r.address?.country || '', tz: COUNTRY_TZ[cc] || null };
+    return { lat: +r.lat, lng: +r.lon, name: r.name || parts[0], area: parts.slice(1, 4).join(', '), country: r.address?.country || '', tz: COUNTRY_TZ[cc] || null, emergency: EMERGENCY[cc] || null };
   });
 }

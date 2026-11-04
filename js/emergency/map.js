@@ -211,7 +211,7 @@ export const mapScreen = {
 
     const showError = (msg, retry) => {
       body.innerHTML = `<div class="mp-empty mp-empty--err">${icon('alert')}<b>${esc(msg)}</b>
-        <p>You can still call ${st.searched ? 'the local emergency number' : esc(t.trip.emergency)} or contact your insurer.</p>
+        <p>You can still call ${st.searched ? (st.place?.emergency ? esc(st.place.emergency) : 'the local emergency number') : esc(t.trip.emergency)} or contact your insurer.</p>
         <div class="mp-empty__btns"><button type="button" class="wbtn" data-retry>${icon('refresh')} Try again</button><button type="button" class="wbtn wbtn--line" data-ins>${icon('umbrella')} Contact insurance</button></div></div>`;
       body.querySelector('[data-retry]').onclick = retry;
       src.textContent = 'Map data unavailable';
@@ -256,7 +256,11 @@ export const mapScreen = {
       const c = e.target.closest('[data-fid]');
       if (c) { select(c.dataset.fid); return; }
       if (e.target.closest('[data-back]')) { if (isOpen('fdetail')) closeOverlay('fdetail'); else leaveDetail(); return; }
-      if (e.target.closest('[data-call]')) { openCallSheet(t); return; }
+      if (e.target.closest('[data-call]')) {
+        // A searched place may be in another country: use its number, or say we don't know it.
+        openCallSheet(st.searched && st.place ? { ...t, trip: { ...t.trip, emergency: st.place.emergency, country: st.place.country } } : t);
+        return;
+      }
       if (e.target.closest('[data-ins]')) { openInsuranceSheet(t); return; }
       if (e.target.closest('[data-demo-call]')) { toast('Demo: calls are disabled. Use “Use my location” for real calling.'); return; }
       if (e.target.closest('[data-recenter]')) { map?.flyTo([st.me.lat, st.me.lng], 15, { duration: 0.6 }); return; }
@@ -271,7 +275,7 @@ export const mapScreen = {
         if (!navigator.geolocation) { toast('Location isn’t available in this browser.'); return; }
         src.textContent = 'Waiting for location permission…';
         navigator.geolocation.getCurrentPosition(
-          (p) => { toast('Using your location. Calls are now enabled.'); st.tz = Intl.DateTimeFormat().resolvedOptions().timeZone; load({ lat: p.coords.latitude, lng: p.coords.longitude }, { live: true, label: 'Your location', searched: false }); },
+          (p) => { st.place = null; root.querySelector('[data-callnum]').textContent = t.trip.emergency; toast('Using your location. Calls are now enabled.'); st.tz = Intl.DateTimeFormat().resolvedOptions().timeZone; load({ lat: p.coords.latitude, lng: p.coords.longitude }, { live: true, label: 'Your location', searched: false }); },
           (err) => {
             toast(err.code === 1 ? 'Location permission denied. Search for a place instead.' : err.code === 3 ? 'Location timed out. Search for a place instead.' : 'Couldn’t get your location. Search for a place instead.');
             updateSrc();
@@ -294,6 +298,8 @@ export const mapScreen = {
     const usePlace = (pl) => {
       geoRes.hidden = true;
       st.tz = pl.tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      st.place = pl;
+      root.querySelector('[data-callnum]').textContent = pl.emergency || 'SOS';
       if (!pl.tz) toast('Opening hours use this device’s time zone for this area.');
       const pt = { lat: pl.lat, lng: pl.lng };
       load(pt, { live: false, label: pl.name, me: pt, searched: true });

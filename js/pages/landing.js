@@ -106,8 +106,8 @@ export const landingPage = {
         <div class="hero__sub">
           <p class="lead reveal" style="--delay:350ms">One secure passport for your allergies, conditions, medications and test results. Translated for any doctor, in any country, the moment you need care.</p>
           <div class="hero__ctas reveal" style="--delay:450ms">
-            ${Button({ label: 'Get Started', href: ROUTES.start })}
-            ${Button({ label: 'Explore Demo', href: ROUTES.demo, variant: 'ghost', iconName: 'play' })}
+            ${Button({ label: 'Guided demo', href: '#/tour' })}
+            ${Button({ label: 'Explore the app', href: ROUTES.demo, variant: 'ghost', iconName: 'play' })}
           </div>
         </div>
       </div>

@@ -207,6 +207,37 @@ Setup guide: [`docs/SETUP.md`](docs/SETUP.md). Live status in the app: **Profile
 
 **Tested (Nov 2026, local):** Barcelona (snapshot, 241 places) and Tokyo/Shinjuku (live Overpass, 167 places; took ~30 s while the server was busy, and the app shows a "still searching" state); navigation links; German PDF → 5 items, German detected; OCR of a French image (French detected, 3 items; OCR misread "µg" as "pg", which is why the review step exists); German → Japanese (glossary terms translated offline, German free text flagged "not translated"); demo QR share → portal. **Not tested:** Supabase storage, real translation providers and server-verified shares, because they need your project and keys.
 
+## Guided demo (Batch 7): Berlin to Tokyo
+
+Open **`#/tour`**, or press **Guided demo** on the landing page or in Profile. A floating guide card takes you through the real screens with fictional **Lukas Becker** (Berlin, insured with the fictional *Sternweg Reiseschutz*), who needs medical help in Tokyo:
+
+1. Residence: Germany → 2. German insurer → 3. upload the German sample PDFs (Rezept, Laborbefund, Anamnese) → 4. extract and verify → 5. activate → 6. emergency at Shinjuku Station → 7. hospitals on the map → 8. German records in Japanese → 9. QR share → 10. doctor portal → 11. Japanese beside the German original → 12. insurance assistance request, then the Sternweg insurer console.
+
+The card follows onboarding automatically, can be minimised, and is compact on phones (tap to expand). Starting the demo resets only the demo onboarding. On the map screen the guide moves out of the way of the zoom controls (desktop) and the bottom sheet (phones).
+
+Data is consistent across the app, the PDFs (`tools/make_demo_docs.py`) and the coded records:
+- Allergy: penicillin (anaphylaxis 2015).
+- Conditions: hypertension and asthma.
+- Medicines: amlodipine 5 mg and salbutamol 100 µg.
+- Tests: creatinine and potassium.
+- Blood type: A+.
+
+The Tokyo map starts from a saved snapshot of real OpenStreetMap data (`assets/demo-data/tokyo-facilities.json`: 175 facilities around Shinjuku, captured 4 Nov 2026). **Search this area** or the place search loads live data.
+
+### What is live and what is simulated
+
+| Area | Status |
+|---|---|
+| Map tiles, hospital search (Overpass), place search (Nominatim), navigation links | **Live** (tested, Barcelona and Tokyo) |
+| PDF text reading (pdf.js), OCR (Tesseract), language detection, glossary extraction | **Live, on the device** (tested) |
+| Offline glossary translation, 12 languages (German → Japanese tested) | **Live** |
+| QR code generation; demo share links with expiry | **Live** (revocation is per browser) |
+| Supabase auth, database, private storage, server-verified shares | **Code included, not connected.** Needs your project (`docs/SETUP.md`); untested |
+| Translation via Google, DeepL or Claude; AI extraction and summaries | **Code included, not connected.** Needs keys; untested |
+| Sample-PDF extraction in onboarding | **Simulated:** samples are recognised by an embedded tag |
+| Insurers, policy connection, network verification, insurer console figures, assistance requests | **Simulated** (fictional insurers) |
+| Clinician identity in the doctor portal | **Not verified** |
+
 ## Notes
 
 - Facility data on the map is real (© OpenStreetMap contributors, ODbL). Travelers, insurers, IDs, clinic names, medical record and QR code are sample/illustrative data. The QR is decorative, not scannable.

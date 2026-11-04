@@ -350,6 +350,7 @@ export const onboardingPage = {
 
     function render() {
       if (STEPS[s.step].key !== 'done') remember('onboarding', { ...s, edit: null });
+      window.dispatchEvent(new CustomEvent('mp:obstep', { detail: STEPS[s.step].key })); // the guided demo follows along
       const st = STEPS[s.step];
       const prog = STEPS.slice(1, -1);
       host.innerHTML = `
