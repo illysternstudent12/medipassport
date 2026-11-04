@@ -85,6 +85,15 @@ export const DOC_KINDS = {
   rx: { label: 'Prescription', file: 'prescription', icon: 'rx', tone: 'peach' },
   lab: { label: 'Lab report', file: 'lab-report', icon: 'flask', tone: 'mint' },
   history: { label: 'Medical history', file: 'medical-history', icon: 'file', tone: 'gray' },
+  // Foreign-language originals (Batch 6.5): same facts, issued abroad.
+  medplan: { label: 'Medication plan (German)', file: 'medikationsplan-de', icon: 'rx', tone: 'peach' },
+  summary: { label: 'Medical summary (French)', file: 'resume-medical-fr', icon: 'file', tone: 'gray' },
+};
+/** Which sample documents exist for each traveler. */
+export const SAMPLES = {
+  maya: ['rx', 'lab', 'history'],
+  kenji: ['rx', 'lab', 'history', 'medplan'],
+  amara: ['rx', 'lab', 'history', 'summary'],
 };
 export const sampleUrl = (traveler, kind) => `assets/demo-docs/${traveler}-${DOC_KINDS[kind].file}.pdf`;
 
@@ -95,6 +104,8 @@ export function extractFrom(traveler, kind) {
   if (kind === 'rx') return { medications: t.medications };
   if (kind === 'lab') return { tests: t.tests };
   if (kind === 'history') return { conditions: t.conditions, allergies: t.allergies, blood: t.blood };
+  if (kind === 'medplan') return { medications: t.medications };
+  if (kind === 'summary') return { conditions: t.conditions, allergies: t.allergies, medications: t.medications, blood: t.blood };
   return {};
 }
 

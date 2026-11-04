@@ -110,6 +110,7 @@ const TERMS = {
   doc_rx: ['Prescription', 'Receta médica', 'Ordonnance', 'Rezept', 'Ricetta medica', 'Receita médica', 'מרשם', 'وصفة طبية', '処方箋', '处方', '처방전', 'Рецепт'],
   doc_lab: ['Laboratory report', 'Informe de laboratorio', 'Compte rendu de laboratoire', 'Laborbefund', 'Referto di laboratorio', 'Relatório laboratorial', 'דו״ח מעבדה', 'تقرير مختبر', '検査報告書', '化验报告', '검사 보고서', 'Лабораторный отчёт'],
   doc_spiro: ['Spirometry report', 'Informe de espirometría', 'Compte rendu de spirométrie', 'Spirometriebefund', 'Referto spirometrico', 'Relatório de espirometria', 'דו״ח ספירומטריה', 'تقرير قياس التنفس', '呼吸機能検査報告書', '肺功能检查报告', '폐기능 검사 보고서', 'Заключение спирометрии'],
+  doc_medplan: ['Medication plan', 'Plan de medicación', 'Plan de médication', 'Medikationsplan', 'Piano terapeutico', 'Plano de medicação', 'תוכנית תרופתית', 'خطة الأدوية', '服薬計画', '用药计划', '복약 계획', 'План приёма лекарств'],
   doc_history: ['Medical history summary', 'Resumen de historia clínica', 'Synthèse des antécédents médicaux', 'Zusammenfassung der Krankengeschichte', 'Sintesi dell’anamnesi', 'Resumo do historial clínico', 'סיכום היסטוריה רפואית', 'ملخص التاريخ الطبي', '病歴要約', '病史摘要', '병력 요약', 'Выписка из истории болезни'],
 
   /* --- allergens, reactions, severity, advice --- */

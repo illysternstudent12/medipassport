@@ -9,7 +9,7 @@ import { Portrait } from './shell.js';
 import { toast } from './ui.js';
 import { langInfo, term } from '../translate/glossary.js';
 import { recordCard, summaryCard, currentFacts, criticalLines, fmtDate } from '../translate/records.js';
-import { targetLang, setTargetLang, ensureTranslated, engineFor } from '../translate/state.js';
+import { patientLang as patientLangOf, doctorLang as doctorLangOf, setDoctorLang, ensureTranslated, engineFor } from '../translate/state.js';
 import { openLanguagePicker, openAiSettings } from '../translate/picker.js';
 import { aiOn, summarize } from '../translate/ai.js';
 import { recordsFor, factsForAi } from './documents.js';
@@ -65,7 +65,7 @@ export const appDoctor = {
   html() {
     const t = currentTraveler();
     const q = (location.hash.match(/[?&]lang=([\w-]+)/) || [])[1];
-    if (q) setTargetLang(t, q);
+    if (q) setDoctorLang(t, q);
     return `<div class="dv" data-dv>
       <header class="dv-bar">
         <a class="dv-bar__back" href="#/app/documents" aria-label="Back to documents">${icon('arrow', 'style="rotate:180deg"')}</a>
@@ -78,8 +78,8 @@ export const appDoctor = {
   },
   mount(root) {
     const t = currentTraveler();
-    const patientLang = currentFacts(t).homeLang;
-    let doctorLang = targetLang(t);
+    const patientLang = patientLangOf(t);
+    let doctorLang = doctorLangOf(t);
     let viewing = 'doctor';
     let narrative = null;
     let alive = true;
@@ -129,7 +129,7 @@ export const appDoctor = {
       if (e.target.closest('[data-dvpick]')) {
         openLanguagePicker({
           current: doctorLang, title: 'Doctor’s language', suggested: [t.trip.lang, 'en', patientLang],
-          onPick: (code) => { doctorLang = code; setTargetLang(t, code); viewing = 'doctor'; fill(); toast(`Doctor view in ${langInfo(code).name}.`); },
+          onPick: (code) => { doctorLang = code; setDoctorLang(t, code); viewing = 'doctor'; fill(); toast(`Doctor view in ${langInfo(code).name}.`); },
         });
         return;
       }

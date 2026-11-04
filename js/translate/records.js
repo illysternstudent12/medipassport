@@ -10,7 +10,7 @@
 import { icon } from '../icons.js';
 import { term, termEn, isRtl, langInfo, SIM } from './glossary.js';
 import { TRAVELERS, getOnboarding } from '../app/data.js';
-import { aiCached } from './ai.js';
+import { aiCached, aiUncertain } from './ai.js';
 
 /* ======================================================================= facts */
 const F = {
@@ -108,27 +108,71 @@ export function currentFacts(t) {
   };
 }
 
-/** Documents for a traveler: home-clinic originals + uploaded copies. */
+/* ======================================================================= document languages */
+// Every document has its own original language. Nothing assumes the traveler's
+// home language: built-in records carry the language they were issued in,
+// uploads are detected from their text, and the patient can correct either.
+const DOC_LANG_KEY = 'mp.doclang';
+const readOverrides = () => { try { return JSON.parse(localStorage.getItem(DOC_LANG_KEY)) || {}; } catch { return {}; } };
+export function setDocLang(recId, lang) {
+  const o = readOverrides();
+  if (lang) o[recId] = lang; else delete o[recId];
+  try { localStorage.setItem(DOC_LANG_KEY, JSON.stringify(o)); } catch { /* storage blocked */ }
+}
+
+// Sample PDFs: where they were issued and the language they are written in.
+export const SAMPLE_META = {
+  medplan: { title: 'doc_medplan', lang: 'de', issuer: 'Hausarztpraxis Dr. med. Lena Hoffmann, Berlin', clinician: 'Dr. med. Lena Hoffmann', date: '2026-05-05' },
+  summary: { title: 'doc_history', lang: 'fr', issuer: 'Cabinet médical Dr Claire Moreau, Paris', clinician: 'Dr Claire Moreau', date: '2025-08-14' },
+  rx: { lang: 'en' }, lab: { lang: 'en' }, history: { lang: 'en' },
+};
+/** Stable id for an uploaded sample document, so shares can reference it on any device. */
+export const sampleRecId = (kind) => `smp-${kind}`;
+/** Recreate uploaded-sample records from share ids (used by the doctor portal on another device). */
+export const sampleUploadsFromIds = (ids) => ids.filter((x) => x.startsWith('smp-'))
+  .map((x) => ({ id: x, kind: x.slice(4), mine: true, lang: SAMPLE_META[x.slice(4)]?.lang, langConf: 'high', langSource: 'detected', name: x }));
+
+/** Documents for a traveler: originals issued at home or abroad + uploads. */
 export function buildRecords(t, uploads = []) {
   const f = currentFacts(t);
-  const factsFor = (kind) => (kind === 'rx' ? f.medications : kind === 'lab' ? f.tests : [...f.conditions, ...f.allergies, { kind: 'blood', value: f.blood }]);
-  const recs = f.docs.map((d) => ({
-    id: `${t.id}-${d.kind}`, ...d, origLang: f.homeLang, source: 'home',
+  const over = readOverrides();
+  const factsFor = (kind) => (
+    kind === 'rx' || kind === 'medplan' ? f.medications
+      : kind === 'lab' ? f.tests
+        : kind === 'summary' ? [...f.conditions, ...f.allergies, ...f.medications, { kind: 'blood', value: f.blood }]
+          : [...f.conditions, ...f.allergies, { kind: 'blood', value: f.blood }]);
+  const withLang = (rec, lang, info) => ({
+    ...rec,
+    origLang: over[rec.id] || lang,
+    langInfo: over[rec.id] ? { source: 'manual', confidence: 'high', auto: lang } : info,
+  });
+  const recs = f.docs.map((d) => withLang({
+    id: `${t.id}-${d.kind}`, ...d, source: 'home',
     facts: factsFor(d.kind), banner: d.kind === 'rx' ? f.allergies : [],
-  }));
+  }, f.homeLang, { source: 'record', confidence: 'high' }));
+  const seen = new Set();
   uploads.forEach((u) => {
     if (u.kind && u.mine) {
-      const d = f.docs.find((x) => x.kind === u.kind);
-      recs.unshift({ id: u.id, ...d, origLang: 'en', source: 'upload', upload: u, facts: factsFor(u.kind), banner: u.kind === 'rx' ? f.allergies : [] });
+      const id = sampleRecId(u.kind);
+      if (seen.has(id)) return;
+      seen.add(id);
+      const meta = SAMPLE_META[u.kind] || {};
+      const base = f.docs.find((x) => x.kind === u.kind) || { kind: u.kind === 'medplan' ? 'rx' : 'history', title: meta.title };
+      recs.unshift(withLang({
+        ...base, ...(meta.issuer ? { issuer: meta.issuer, clinician: meta.clinician, date: meta.date, title: meta.title } : {}),
+        id, kind: base.kind, source: 'upload', upload: u, sampleKind: u.kind,
+        facts: factsFor(u.kind), banner: ['rx', 'medplan'].includes(u.kind) ? f.allergies : [],
+      }, u.lang || meta.lang || 'en', { source: u.langSource || 'detected', confidence: u.langConf || 'medium' }));
     } else if (u.ai) {
-      recs.unshift({
+      recs.unshift(withLang({
         id: u.id, kind: 'upload', title: null, titleText: u.ai.title || u.name, issuer: u.ai.issuer || '', clinician: '', date: u.ai.date || '',
-        origLang: u.ai.lang || 'en', source: 'ai', upload: u, banner: [],
+        source: 'ai', upload: u, banner: [],
         facts: [...(u.ai.allergies || []).map((x) => ({ kind: 'allergy', text: x })), ...(u.ai.medications || []).map((x) => ({ kind: 'med', text: x })),
           ...(u.ai.conditions || []).map((x) => ({ kind: 'condition', text: x })), ...(u.ai.tests || []).map((x) => ({ kind: 'test', text: x }))],
-      });
+      }, (u.ai.lang || u.lang || 'en').split('-')[0], { source: 'ai', confidence: 'high' }));
     } else {
-      recs.unshift({ id: u.id, kind: 'upload', title: null, titleText: u.name, issuer: '', clinician: '', date: '', origLang: null, source: 'stored', upload: u, facts: [], banner: [] });
+      recs.unshift(withLang({ id: u.id, kind: 'upload', title: null, titleText: u.name, issuer: '', clinician: '', date: '', source: 'stored', upload: u, facts: [], banner: [] },
+        u.lang || null, { source: u.lang ? 'detected' : 'unknown', confidence: u.langConf || 'low' }));
     }
   });
   return recs;
@@ -142,13 +186,13 @@ export function resolve(seg, lang, origLang) {
   if (seg.raw !== undefined) {
     if (!lang || lang === origLang) return { text: seg.raw, src: 'orig' };
     const ai = aiCached(lang, seg.raw);
-    return ai ? { text: ai, src: 'ai' } : { text: seg.raw, src: 'raw' };
+    return ai ? { text: ai, src: 'ai', unsure: aiUncertain(lang, seg.raw) } : { text: seg.raw, src: 'raw' };
   }
   const g = term(seg.k, lang, seg.p);
   if (g !== null) return { text: g, src: 'gloss' };
   const en = termEn(seg.k, seg.p);
   const ai = aiCached(lang, en);
-  return ai ? { text: ai, src: 'ai' } : { text: en, src: 'pending' };
+  return ai ? { text: ai, src: 'ai', unsure: aiUncertain(lang, en) } : { text: en, src: 'pending' };
 }
 
 /** All English source strings a record needs (for live AI batching). */
@@ -215,6 +259,7 @@ function seg(s, lang, origLang) {
   const text = `${s.prefix ? s.prefix : ''}${r.text}${s.suffix || ''}`;
   if (r.src === 'raw') return `<span class="seg seg--raw" lang="und" title="${esc(term('not_translated', lang) || 'Not translated · shown as written')}">${esc(text)}<i class="seg__flag" aria-hidden="true">${icon('alert')}</i></span>`;
   if (r.src === 'pending') return `<span class="seg seg--pending" lang="en">${esc(text)}</span>`;
+  if (r.src === 'ai' && r.unsure) return `<span class="seg seg--ai seg--unsure" title="Verify: ${esc(r.unsure)}">${esc(text)}<i class="seg__flag seg__flag--unsure" aria-label="Uncertain translation, verify">${icon('eye')}</i></span>`;
   if (r.src === 'ai') return `<span class="seg seg--ai">${esc(text)}</span>`;
   return esc(text);
 }

@@ -169,6 +169,16 @@ python tools/make_demo_docs.py
 - **Insurer console:** simulated sign-in as one of three fictional insurers. It shows enrolled policyholders, active passports, connected policies, a monthly-active chart (with table view), emergency assistance requests (location and policy only), documents authorized for claims review (per claim, with expiry), and licensing (a fictional €3.90 per policyholder per year). Insurers never see medical histories, summaries or documents that weren't authorized; the console lists what it can and can't see.
 - **Demo limits (stated in the UI):** there is no server. A share's scope and code travel inside the link, so links work on any device but enforce only their expiry there. Revocation, activity history, claim authorizations and assistance requests are stored in this browser. A production system would issue opaque tokens and check every request server-side. Share links point to the live site, or to the local server when running locally.
 
+## Universal translation (Batch 6.5)
+
+No language is treated as "the original". Four settings are independent per traveler (Profile → Languages): the **app interface** (English for now), the language the **patient reads** records in, the language **doctors read** in (default for Doctor view and new shares), and the **destination** language (emergency responders). Each **document** has its own original language.
+
+- **Detection:** `js/translate/detect.js` detects a document's language offline, by writing system (Hebrew, Arabic, Japanese, Chinese, Korean, Cyrillic, Greek, Thai, Devanagari) and, for Latin-script text, by frequent words and characteristic letters. It reads text from PDFs that store it uncompressed (all sample PDFs); photos and other PDFs need live AI, which also reports the language. The result is shown on every document ("detected automatically · high confidence") with **Change**, so the patient can correct it; corrections are remembered per document and can be undone.
+- **Any → any:** coded records render offline in any of the 12 glossary languages, as originals or translations; live AI covers every other pair. Originals are always shown with the translation (side by side when there's room, stacked otherwise).
+- **Uncertainty:** live-AI translations come back with an "uncertain" flag and reason, highlighted for professional verification; low-confidence or unknown document languages are flagged too.
+- **New samples (same facts, issued abroad):** `kenji-medikationsplan-de.pdf` (German medication plan, Berlin) and `amara-resume-medical-fr.pdf` (French medical summary, Paris). Uploaded samples can be shared and open in the doctor portal on any device.
+- **Tested:** German → Japanese (Kenji, patient and doctor portal), Hebrew → Spanish (Maya, patient and doctor), English → Arabic (Amara, patient and doctor, RTL), French → English (Amara, patient).
+
 ## Notes
 
 - Facility data on the map is real (© OpenStreetMap contributors, ODbL). Travelers, insurers, IDs, clinic names, medical record and QR code are sample/illustrative data. The QR is decorative, not scannable.

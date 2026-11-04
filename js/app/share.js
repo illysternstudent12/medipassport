@@ -6,8 +6,9 @@ import { icon } from '../icons.js';
 import { currentTraveler } from './data.js';
 import { appShell, AppTop, toast, mountShell } from './shell.js';
 import { buildRecords, fmtDate, KIND_ICON } from '../translate/records.js';
+import { getUploads } from './documents.js';
 import { langInfo, term } from '../translate/glossary.js';
-import { targetLang } from '../translate/state.js';
+import { doctorLang, patientLang } from '../translate/state.js';
 import { openLanguagePicker } from '../translate/picker.js';
 import {
   DURATIONS, SECTIONS, createShare, revokeShare, sharesFor, getShare, statusOf, shareUrl, eventsFor,
@@ -42,7 +43,7 @@ function builder(t, recs, st) {
         ${recs.map((r) => `<label class="sdoc ${st.docs.includes(r.id) ? 'is-on' : ''}">
           <input type="checkbox" data-doc="${r.id}" ${st.docs.includes(r.id) ? 'checked' : ''}/>
           <span class="sdoc__ic">${icon(KIND_ICON[r.kind])}</span>
-          <span class="sdoc__txt"><b>${esc(term(r.title, 'en'))}</b><small>${esc(r.issuer)} · ${fmtDate(r.date, 'en')}</small></span>
+          <span class="sdoc__txt"><b>${esc(term(r.title, 'en'))}</b><small>${esc(r.issuer)} · ${fmtDate(r.date, 'en')} · ${esc(langInfo(r.origLang).name)} original</small></span>
           <span class="sdoc__tick">${icon('check')}</span>
         </label>`).join('')}
       </div>
@@ -133,11 +134,12 @@ export const appShare = {
   mount(root) {
     const t = currentTraveler();
     const off = [mountShell(root)];
-    const recs = buildRecords(t, []);
+    // Home records + uploaded sample documents (they can be rebuilt on any device). Live-AI uploads stay on this device.
+    const recs = buildRecords(t, getUploads(t)).filter((r) => r.source === 'home' || r.source === 'upload');
     const quick = /[?&]quick/.test(location.hash);
     const st = {
       recipient: 'doctor', docs: recs.map((r) => r.id), sections: ['medications', 'conditions', 'tests'],
-      lang: targetLang(t), duration: '1h', claimRef: `CLM-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9e4) + 1e4)}`, shown: null,
+      lang: doctorLang(t), duration: '1h', claimRef: `CLM-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9e4) + 1e4)}`, shown: null,
     };
     const buildSlot = root.querySelector('[data-build-slot]');
     const resSlot = root.querySelector('[data-result-slot]');
@@ -178,7 +180,7 @@ export const appShare = {
         return;
       }
       if (e.target.closest('[data-create]')) {
-        const sh = createShare({ traveler: t.id, recipient: st.recipient, docs: st.docs, sections: st.sections, lang: st.recipient === 'doctor' ? st.lang : 'en', duration: st.duration, claimRef: st.recipient === 'insurer' ? st.claimRef : '' });
+        const sh = createShare({ traveler: t.id, recipient: st.recipient, docs: st.docs, sections: st.sections, lang: st.recipient === 'doctor' ? st.lang : 'en', patientLang: patientLang(t), duration: st.duration, claimRef: st.recipient === 'insurer' ? st.claimRef : '' });
         st.shown = sh.id;
         renderResult(); renderList();
         toast(st.recipient === 'insurer' ? 'Documents authorized for this claim only.' : 'Secure access created.');
@@ -217,7 +219,7 @@ export const appShare = {
     if (quick) {
       // From "I need medical help": all records, all sections, local language, 1 hour.
       st.lang = t.trip.lang;
-      const sh = createShare({ traveler: t.id, recipient: 'doctor', docs: recs.map((r) => r.id), sections: SECTIONS.map((x) => x.key), lang: t.trip.lang, duration: '1h', label: 'Emergency · treating doctor' });
+      const sh = createShare({ traveler: t.id, recipient: 'doctor', docs: recs.map((r) => r.id), sections: SECTIONS.map((x) => x.key), lang: t.trip.lang, patientLang: patientLang(t), duration: '1h', label: 'Emergency · treating doctor' });
       st.shown = sh.id; renderResult(); renderList();
       toast('Emergency access created for 1 hour.');
     } else {

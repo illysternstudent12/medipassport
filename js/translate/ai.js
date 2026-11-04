@@ -29,9 +29,17 @@ const loadCache = () => {
   return cache;
 };
 const persist = () => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* quota */ } };
+// Cache entries are { t: translation, u: uncertain, r: reason } (older entries are plain strings).
 export function aiCached(lang, text) {
   if (!aiOn()) return null;
-  return loadCache()[lang]?.[text] ?? null;
+  const v = loadCache()[lang]?.[text];
+  return v == null ? null : typeof v === 'string' ? v : v.t;
+}
+/** Why live AI flagged a translation as uncertain, or null if it didn't. */
+export function aiUncertain(lang, text) {
+  if (!aiOn()) return null;
+  const v = loadCache()[lang]?.[text];
+  return v && typeof v === 'object' && v.u ? (v.r || 'Uncertain translation') : null;
 }
 export function clearAiCache() { cache = {}; persist(); }
 
@@ -81,7 +89,8 @@ Hard rules:
 - Never add, infer, complete or "correct" medical facts. Translate or copy only what is given.
 - Keep drug names, doses, units, numbers, dates and reference ranges exactly as given (localise only the decimal separator if the target language requires it).
 - Use standard clinical terminology a physician in the target language would expect.
-- If something is unclear or illegible, leave it out rather than guessing.`;
+- If something is unclear or illegible, leave it out rather than guessing.
+- Source text may be in any language; detect it yourself. Never assume a source language.`;
 
 /* ---------------------------------------------------------------- translate */
 /** Translate a batch of English or source-language strings into `lang`. Results are cached. */
@@ -91,11 +100,22 @@ export async function translateStrings(lang, langName, strings) {
   const todo = strings.filter((s) => s && c[lang][s] === undefined);
   if (!todo.length) return 0;
   const out = await ask({
-    system: `${RULES}\nTranslate each string into ${langName} (${lang}). Return the translations in the same order, one per input string.`,
+    system: `${RULES}\nTranslate each string into ${langName} (${lang}). Return one item per input string, in the same order.
+Set "uncertain" to true when the translation might not be exact: an ambiguous term, a brand or abbreviation you can't expand with certainty, a dose or unit with no clear equivalent, or wording a clinician should double-check. Give a short English reason. Otherwise uncertain is false and reason is empty.`,
     content: JSON.stringify({ target_language: langName, strings: todo }),
     schema: {
       type: 'object',
-      properties: { translations: { type: 'array', items: { type: 'string' } } },
+      properties: {
+        translations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { text: { type: 'string' }, uncertain: { type: 'boolean' }, reason: { type: 'string' } },
+            required: ['text', 'uncertain', 'reason'],
+            additionalProperties: false,
+          },
+        },
+      },
       required: ['translations'],
       additionalProperties: false,
     },
@@ -103,7 +123,7 @@ export async function translateStrings(lang, langName, strings) {
   if (!Array.isArray(out.translations) || out.translations.length !== todo.length) {
     throw new Error('Translation came back incomplete. Nothing was saved.');
   }
-  todo.forEach((s, i) => { c[lang][s] = out.translations[i]; });
+  todo.forEach((s, i) => { const x = out.translations[i]; c[lang][s] = { t: x.text, u: !!x.uncertain, r: x.reason || '' }; });
   persist();
   return todo.length;
 }

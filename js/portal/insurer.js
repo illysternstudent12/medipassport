@@ -8,7 +8,7 @@ import { TRAVELERS, travelerById } from '../app/data.js';
 import { Portrait } from '../app/shell.js';
 import { openSheet, toast } from '../app/ui.js';
 import { INSURERS, InsurerLogo } from '../onboarding/data.js';
-import { buildRecords, fmtDate } from '../translate/records.js';
+import { buildRecords, fmtDate, sampleUploadsFromIds } from '../translate/records.js';
 import { term } from '../translate/glossary.js';
 import { layeredViewer, bindViewer } from '../app/documents.js';
 import { claimAuthorizations, statusOf, logEvent, assistRequests } from '../share/store.js';
@@ -140,7 +140,7 @@ function dashboard(key) {
         <header><h2>Documents authorized for claims review</h2><span class="ic-hint">Each authorization covers one claim and expires.</span></header>
         ${authed.length ? `<ul class="ic-claims">${authed.map((s) => {
           const t = travelerById(s.traveler);
-          const recs = buildRecords(t, []).filter((r) => s.docs.includes(r.id));
+          const recs = buildRecords(t, sampleUploadsFromIds(s.docs)).filter((r) => s.docs.includes(r.id));
           const stt = statusOf(s);
           return `<li class="iclaim iclaim--${stt}">
             <span class="iclaim__ph">${Portrait(t)}</span>
@@ -218,7 +218,7 @@ export const insurerConsole = {
         const sh = claimAuthorizations().find((s) => s.id === rv.dataset.review);
         if (!sh || statusOf(sh) !== 'active') { toast('This authorization is no longer valid.'); render(); return; }
         const t = travelerById(sh.traveler);
-        const recs = buildRecords(t, []).filter((r) => sh.docs.includes(r.id));
+        const recs = buildRecords(t, sampleUploadsFromIds(sh.docs)).filter((r) => sh.docs.includes(r.id));
         logEvent(sh.id, 'opened', 'Insurer claims review');
         openSheet({
           title: `${sh.claimRef || 'Claim'} · ${t.first} ${t.last}`,

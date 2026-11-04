@@ -312,14 +312,39 @@
   .app-view--documents .dsum .scard { padding: 1.5rem 1.75rem; }
   .app-view--documents .dsum .scard { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 1.25rem; }
   .app-view--documents .scard__head, .app-view--documents .scard__narr, .app-view--documents .verify { grid-column: 1 / -1; }
-  .dpane .lview--compare .lview__deck { grid-template-columns: 1fr; }
 }
-@media (min-width: 1280px) {
-  .dpane .lview--compare .lview__deck { grid-template-columns: 1fr 1fr; }
-  .dpane .lview--compare .lview__card--orig { order: 0; }
+/* Side by side only when the panel itself has room (container query), otherwise stacked. */
+.dpane, .pt-rec, .bsheet__body { container-type: inline-size; }
+@container (min-width: 720px) {
+  .lview--compare .lview__deck { grid-template-columns: 1fr 1fr; }
+  .lview--compare .lview__card--orig { order: 0; }
 }
 
 .dcard__flow { flex-direction: row !important; align-items: center; gap: 4px !important; }
 .dcard__flow svg { width: 12px; height: 12px; opacity: 0.6; flex: none; }
 .dcard__flow i.is-to { background: var(--mint); }
 .dcard[aria-pressed="true"] .dcard__flow i.is-to { background: var(--mint); color: var(--black); }
+
+/* ---------------------------------------------------------------- Batch 6.5: document language + settings */
+.lview__orig { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.6rem; padding: 0.6rem 0.8rem; border-radius: 14px; background: rgba(255, 255, 255, 0.7); box-shadow: inset 0 0 0 1px var(--line); font-size: 0.85rem; }
+.lview__orig > svg { width: 16px; height: 16px; flex: none; }
+.lview__orig > span { flex: 1; min-width: 0; }
+.lview__orig small { color: var(--muted); margin-inline-start: 0.25rem; }
+.lview__orig.is-unsure { background: #F6E1D7; box-shadow: none; }
+.lview__orig.is-unsure > svg { color: var(--alert); }
+.lview__change { height: 32px; padding: 0 0.8rem; border-radius: var(--r-pill); background: var(--black); color: var(--cream); font-weight: 600; font-size: 0.78rem; flex: none; }
+.seg--unsure { background: linear-gradient(transparent 62%, rgba(231, 196, 177, 0.9) 62%); }
+.seg__flag--unsure { color: var(--ink); }
+.langset { display: grid; padding: 0.25rem 1rem; border-radius: 22px; background: var(--white); }
+.langset li + li { border-top: 1px solid var(--line); }
+.langset__row, .langset__btn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0.8rem 0; text-align: start; }
+.langset__k { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.langset__k > svg { width: 18px; height: 18px; flex: none; }
+.langset__k span { display: grid; line-height: 1.3; }
+.langset__k b { font-size: 0.95rem; letter-spacing: -0.02em; }
+.langset__k small { color: var(--muted); font-size: 0.78rem; }
+.langset__v { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; text-align: end; flex: none; max-width: 50%; }
+.langset__v small { display: block; font-weight: 500; color: var(--muted); font-size: 0.72rem; }
+.langset__v--static { display: grid; justify-items: end; }
+.langset__v svg { width: 15px; height: 15px; opacity: 0.6; }
+@media (min-width: 960px) { .p-langs { grid-column: 2; } }

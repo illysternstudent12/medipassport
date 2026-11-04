@@ -5,9 +5,11 @@ import { BrandMark, QR } from '../components.js';
 import { TRAVELERS, LANG_LABEL, travelerById, saveOnboarding, setTraveler, clearOnboarding } from '../app/data.js';
 import { Portrait } from '../app/shell.js';
 import { PassportCard } from '../app/home.js';
+import { detectFileLanguage } from '../translate/detect.js';
+import { langInfo } from '../translate/glossary.js';
 import {
   COUNTRIES, INSURERS, Flag, InsurerLogo, demoPolicy,
-  DOC_KINDS, sampleUrl, extractFrom, detectSample,
+  DOC_KINDS, SAMPLES, sampleUrl, extractFrom, detectSample,
 } from './data.js';
 
 const STEPS = [
@@ -169,10 +171,10 @@ function viewUpload(s) {
         <div><b>No records handy?</b><small>Use ${t.first}’s fictional sample documents.</small></div>
       </div>
       <div class="samples__list">
-        ${Object.entries(DOC_KINDS).map(([k, d]) => `<a class="sample sample--${d.tone}" href="${sampleUrl(p, k)}" download>
+        ${SAMPLES[p].map((k) => [k, DOC_KINDS[k]]).map(([k, d]) => `<a class="sample sample--${d.tone}" href="${sampleUrl(p, k)}" download>
           ${icon(d.icon)}<span>${d.label}</span><small>PDF</small>${icon('arrow', 'class="sample__dl"')}</a>`).join('')}
       </div>
-      <button type="button" class="samples__add" data-add-samples>${icon('plus')} Add all three samples</button>
+      <button type="button" class="samples__add" data-add-samples>${icon('plus')} Add all ${SAMPLES[p].length} samples</button>
     </section>
 
     <ul class="uploads" data-uploads aria-live="polite">${s.files.map(fileRow).join('')}</ul>`;
@@ -182,7 +184,7 @@ function fileRow(f) {
   const kind = f.kind ? DOC_KINDS[f.kind] : null;
   const status = f.status === 'reading' ? 'Uploading…'
     : f.status === 'other' ? `Sample for another demo traveler · stored, not read`
-    : kind ? `Recognized · ${kind.label}` : 'Stored · not readable in the demo';
+    : kind ? `Recognized · ${kind.label}${f.lang ? ` · ${langInfo(f.lang).name}` : ''}` : `Stored · not readable in the demo${f.lang ? ` · ${langInfo(f.lang).name}` : ''}`;
   return `<li class="upload ${f.status === 'reading' ? 'is-reading' : ''} ${kind && f.status !== 'other' ? `upload--${kind.tone}` : ''}" data-fid="${f.id}">
     <span class="upload__ic">${icon(kind ? kind.icon : f.source === 'Camera' ? 'camera' : 'file')}</span>
     <span class="upload__txt"><b>${esc(f.name)}</b><small>${f.source} · ${fmtSize(f.size)} · <span data-status>${status}</span></small></span>
@@ -288,7 +290,7 @@ function panelArt(s, key) {
     return `<div class="art-logos">${list.map((i, n) => `<span style="--i:${n};background:${i.bg};color:${i.fg}">${InsurerLogo(i)}</span>`).join('')}</div>`;
   }
   if (key === 'upload' || key === 'extract') {
-    return `<div class="art-docs">${Object.values(DOC_KINDS).map((d, i) => `<span class="art-docs__d art-docs__d--${d.tone}" style="--i:${i}">${icon(d.icon)}<b>${d.label}</b><i></i><i></i><i></i></span>`).join('')}</div>`;
+    return `<div class="art-docs">${Object.values(DOC_KINDS).slice(0, 3).map((d, i) => `<span class="art-docs__d art-docs__d--${d.tone}" style="--i:${i}">${icon(d.icon)}<b>${d.label}</b><i></i><i></i><i></i></span>`).join('')}</div>`;
   }
   if (key === 'review' || key === 'permissions') {
     return `<div class="art-checks">${['Allergies', 'Medications', 'Conditions', 'Results'].map((l, i) => `<span style="--i:${i}">${icon('check')}${l}</span>`).join('')}</div>`;
@@ -404,6 +406,8 @@ export const onboardingPage = {
         ul?.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: reduce() ? 'auto' : 'smooth' });
         refreshNext();
         const tag = await detectSample(file).catch(() => null);
+        const det = await detectFileLanguage(file);
+        f.lang = det.lang; f.langConf = det.confidence;
         await wait(900 + Math.random() * 500);
         if (!alive) return;
         if (tag && tag.traveler === p) { f.kind = tag.kind; f.status = 'done'; }
@@ -419,7 +423,7 @@ export const onboardingPage = {
       const p = persona(s);
       const btn = host.querySelector('[data-add-samples]');
       btn.disabled = true;
-      for (const k of Object.keys(DOC_KINDS)) {
+      for (const k of SAMPLES[p]) {
         if (s.files.some((f) => f.kind === k && f.status === 'done')) continue;
         const res = await fetch(sampleUrl(p, k));
         const blob = await res.blob();

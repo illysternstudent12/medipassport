@@ -7,7 +7,7 @@ import { BrandMark } from '../components.js';
 import { travelerById } from '../app/data.js';
 import { Portrait } from '../app/shell.js';
 import { langInfo, term } from '../translate/glossary.js';
-import { buildRecords, summaryCard, currentFacts, criticalLines, fmtDate } from '../translate/records.js';
+import { buildRecords, summaryCard, currentFacts, criticalLines, fmtDate, sampleUploadsFromIds } from '../translate/records.js';
 import { openLanguagePicker } from '../translate/picker.js';
 import { layeredViewer, bindViewer } from '../app/documents.js';
 import { decodeToken, getShare, statusOf, logEvent, SECTIONS } from '../share/store.js';
@@ -64,10 +64,11 @@ function portal(t, sh, lang) {
   const info = langInfo(lang);
   const f = currentFacts(t);
   const crit = criticalLines(t, lang);
-  const recs = buildRecords(t, []).filter((r) => sh.docs.includes(r.id));
+  const recs = buildRecords(t, sampleUploadsFromIds(sh.docs)).filter((r) => sh.docs.includes(r.id));
   const shown = SECTIONS.filter((x) => sh.sections.includes(x.key));
   const hidden = SECTIONS.filter((x) => !sh.sections.includes(x.key));
-  const quick = [...new Set([sh.lang, 'en', f.homeLang, t.trip.lang])];
+  // Doctor's language first, then the patient's, then English and the destination's.
+  const quick = [...new Set([sh.lang, sh.patientLang || t.homeLang, 'en', t.trip.lang])].slice(0, 4);
   return frame(`<main class="pt-main" lang="${lang}">
       <aside class="pt-side">
         <section class="pt-id">
@@ -170,7 +171,7 @@ export const doctorPortal = {
       }
       if (e.target.closest('[data-end]')) { try { sessionStorage.removeItem(SESSION); } catch { /* ignore */ } host.innerHTML = gate(t, sh); return; }
       const flip = e.target.closest('[data-flip], [data-m]');
-      if (flip) { const rec = flip.closest('[data-prec]'); if (rec) logEvent(sh.id, 'viewed', term(buildRecords(t, []).find((r) => r.id === rec.dataset.prec)?.title, 'en') || 'Document'); }
+      if (flip) { const rec = flip.closest('[data-prec]'); if (rec) logEvent(sh.id, 'viewed', term(buildRecords(t, sampleUploadsFromIds(sh.docs)).find((r) => r.id === rec.dataset.prec)?.title, 'en') || 'Document'); }
     });
 
     // Countdown; lock the record the moment access ends (expiry or revocation in this browser).

@@ -33,13 +33,13 @@ const unb64u = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replac
 
 /** Compact token: everything the portal needs to open a share on any device. */
 export function tokenFor(sh) {
-  return b64u(JSON.stringify({ v: 1, i: sh.id, t: sh.traveler, d: sh.docs, s: sh.sections, l: sh.lang, e: Math.floor(sh.expiresAt / 1000), c: sh.code, r: sh.recipient }));
+  return b64u(JSON.stringify({ v: 1, i: sh.id, t: sh.traveler, d: sh.docs, s: sh.sections, l: sh.lang, p: sh.patientLang, e: Math.floor(sh.expiresAt / 1000), c: sh.code, r: sh.recipient }));
 }
 export function decodeToken(tok) {
   try {
     const o = JSON.parse(unb64u(tok));
     if (o.v !== 1) return null;
-    return { id: o.i, traveler: o.t, docs: o.d || [], sections: o.s || ['allergies'], lang: o.l, expiresAt: o.e * 1000, code: o.c, recipient: o.r || 'doctor' };
+    return { id: o.i, traveler: o.t, docs: o.d || [], sections: o.s || ['allergies'], lang: o.l, patientLang: o.p || null, expiresAt: o.e * 1000, code: o.c, recipient: o.r || 'doctor' };
   } catch { return null; }
 }
 /** Link that works from any device (the live site) — or this origin when running locally. */
@@ -72,6 +72,7 @@ export function createShare(o) {
   const now = Date.now();
   const sh = {
     id: rid(), traveler: o.traveler, recipient: o.recipient, docs: o.docs,
+    patientLang: o.patientLang || null,
     // Doctors always receive allergies (safety). Insurers receive only the documents chosen.
     sections: o.recipient === 'doctor' ? [...new Set(['allergies', ...o.sections])] : [], lang: o.lang,
     createdAt: now, expiresAt: now + d.ms, duration: d.key, code: code4(),

@@ -127,39 +127,58 @@ def write_pdf(path, page, title, keywords):
 
 
 # --------------------------------------------------------------------------- layout
-def frame(p, person, issuer, title, date):
+# Every printed label is localised so a German or French sample reads as a
+# genuinely German or French document (the app detects the language from text).
+LABELS = {
+    "en": {"wm": "SAMPLE", "fict": "Fictional sample clinic", "demo": "demo document", "issued": "Date issued",
+           "cols": ("PATIENT", "DATE OF BIRTH", "SEX", "NATIONALITY"), "pno": "Patient no.", "sig": "Signature (sample)",
+           "f1": "FICTIONAL SAMPLE DOCUMENT  |  Created for the MediPassport demo",
+           "f2": "Not a real medical record. Not for clinical use. All names, clinics and values are invented."},
+    "de": {"wm": "MUSTER", "fict": "Fiktive Musterpraxis", "demo": "Demo-Dokument", "issued": "Ausgestellt am",
+           "cols": ("PATIENT", "GEBURTSDATUM", "GESCHLECHT", "STAATSANGEHÖRIGKEIT"), "pno": "Patienten-Nr.", "sig": "Unterschrift (Muster)",
+           "f1": "FIKTIVES MUSTERDOKUMENT  |  Erstellt für die MediPassport-Demo",
+           "f2": "Keine echte Krankenakte. Nicht für die klinische Verwendung. Alle Namen, Praxen und Werte sind erfunden."},
+    "fr": {"wm": "EXEMPLE", "fict": "Cabinet fictif", "demo": "document de démonstration", "issued": "Date d’émission",
+           "cols": ("PATIENTE", "DATE DE NAISSANCE", "SEXE", "NATIONALITÉ"), "pno": "N° de patiente", "sig": "Signature (exemple)",
+           "f1": "DOCUMENT FICTIF  |  Créé pour la démonstration MediPassport",
+           "f2": "Ce n’est pas un vrai dossier médical. Ne pas utiliser en clinique. Noms, cabinets et valeurs sont inventés."},
+}
+
+
+def frame(p, person, issuer, title, date, lang="en", who=None, city=None):
+    L = LABELS[lang]
+    who = who or person
     pg = Page()
     # watermark
-    pg.text_rot(110, 250, "SAMPLE", "F2", 130, (0.95, 0.92, 0.89), 0.866, 0.5)
+    pg.text_rot(110, 250, L["wm"], "F2", 130, (0.95, 0.92, 0.89), 0.866, 0.5)
     # header band
     pg.rect(0, 752, 595, 90, PEACH)
     pg.text(40, 806, issuer, "F2", 17)
-    pg.text(40, 789, f"{person['city']}  |  Fictional sample clinic", "F1", 9, (0.25, 0.2, 0.18))
+    pg.text(40, 789, f"{city or person['city']}  |  {L['fict']}", "F1", 9, (0.25, 0.2, 0.18))
     pg.text(430, 806, "MediPassport", "F2", 10)
-    pg.text(430, 792, "demo document", "F3", 10)
+    pg.text(430, 792, L["demo"], "F3", 10)
     # title
     pg.text(40, 700, title, "F3", 34)
-    pg.text(40, 680, f"Date issued: {date}", "F1", 10, (0.35, 0.35, 0.35))
+    pg.text(40, 680, f"{L['issued']}: {date}", "F1", 10, (0.35, 0.35, 0.35))
     # patient block
     pg.rect(40, 590, 515, 72, CREAM)
-    cols = [("PATIENT", person["name"]), ("DATE OF BIRTH", person["dob"]), ("SEX", person["sex"]),
-            ("NATIONALITY", person["nat"])]
+    cols = list(zip(L["cols"], (who["name"], who["dob"], who["sex"], who["nat"])))
     for i, (k, v) in enumerate(cols):
         x = 54 + i * 126
         pg.text(x, 640, k, "F2", 7, (0.4, 0.4, 0.4))
         pg.text(x, 624, v, "F2", 11)
-    pg.text(54, 602, f"Patient no. {person['pno']}", "F1", 8.5, (0.4, 0.4, 0.4))
+    pg.text(54, 602, f"{L['pno']} {who['pno']}", "F1", 8.5, (0.4, 0.4, 0.4))
     # footer
     pg.rect(0, 0, 595, 46, MINT)
-    pg.text(40, 26, "FICTIONAL SAMPLE DOCUMENT  |  Created for the MediPassport demo", "F2", 8)
-    pg.text(40, 14, "Not a real medical record. Not for clinical use. All names, clinics and values are invented.", "F1", 7.5)
+    pg.text(40, 26, L["f1"], "F2", 8)
+    pg.text(40, 14, L["f2"], "F1", 7.5)
     return pg
 
 
-def signature(pg, doctor, y=150):
+def signature(pg, doctor, y=150, lang="en"):
     pg.line(40, y, 230, y, BLACK, 0.6)
     pg.text(40, y - 14, doctor, "F2", 9.5)
-    pg.text(40, y - 26, "Signature (sample)", "F1", 8, (0.4, 0.4, 0.4))
+    pg.text(40, y - 26, LABELS[lang]["sig"], "F1", 8, (0.4, 0.4, 0.4))
 
 
 def table(pg, y, headers, xs, rows, size=10.5):
@@ -218,11 +237,59 @@ def make_history(tid, p):
     write_pdf(OUT / f"{tid}-medical-history.pdf", pg, f"Medical history summary - {p['name']} (sample)", f"MPDEMO:{tid}:history")
 
 
+def make_medplan_de():
+    """Kenji: German medication plan from a stay in Berlin. Same medicines as his prescription."""
+    who = {"name": "Kenji Watanabe", "dob": "02.07.1987", "sex": "männlich", "nat": "japanisch", "pno": "B-77310"}
+    pg = frame(None, who, "Hausarztpraxis Dr. med. Lena Hoffmann", "Medikationsplan", "05.05.2026", "de", who, "Berlin, Deutschland")
+    pg.rect(40, 548, 515, 26, (0.95, 0.85, 0.81))
+    pg.text(52, 557, "ALLERGIEN: ERDNÜSSE (ANAPHYLAXIE)", "F2", 10, ALERT)
+    y = table(pg, 520, ["WIRKSTOFF", "DOSIS", "EINNAHME", "HINWEIS"], [40, 200, 300, 430], [
+        ("Budesonid/Formoterol", "2 Hübe", "2-mal täglich", "Inhalation"),
+        ("Salbutamol", "100 µg", "bei Bedarf", "bei Atemnot"),
+        ("Adrenalin-Autoinjektor", "0,3 mg", "nur im Notfall", "bei Anaphylaxie"),
+    ])
+    pg.text(40, y, "Erläuterungen", "F2", 9)
+    y -= 16
+    for line in ("Budesonid/Formoterol 160/4,5 Mikrogramm: morgens und abends je 2 Hübe inhalieren.",
+                 "Salbutamol 100 µg: bei Atemnot 1-2 Hübe.",
+                 "Adrenalin-Autoinjektor 0,3 mg: nur bei einer schweren allergischen Reaktion verwenden.",
+                 "Diagnose: Asthma bronchiale seit der Kindheit."):
+        pg.text(40, y, line, "F1", 9.5)
+        y -= 15
+    signature(pg, "Dr. med. Lena Hoffmann", lang="de")
+    write_pdf(OUT / "kenji-medikationsplan-de.pdf", pg, "Medikationsplan - Kenji Watanabe (Muster)", "MPDEMO:kenji:medplan")
+
+
+def make_summary_fr():
+    """Amara: French medical summary from a Paris practice. Same facts as her records."""
+    who = {"name": "Amara Okafor", "dob": "23/11/1979", "sex": "féminin", "nat": "britannique", "pno": "P-20871"}
+    pg = frame(None, who, "Cabinet médical Dr Claire Moreau", "Résumé médical", "14/08/2025", "fr", who, "Paris, France")
+    pg.text(40, 560, "GROUPE SANGUIN", "F2", 7.5, (0.4, 0.4, 0.4))
+    pg.text(40, 542, "B Rhésus négatif", "F2", 14)
+    y = table(pg, 505, ["ANTÉCÉDENT", "DEPUIS", "REMARQUE"], [40, 230, 330], [
+        ("Hypertension artérielle", "2020", "Bien contrôlée sous traitement."),
+        ("Hypothyroïdie", "2018", "Stable sous traitement substitutif."),
+    ])
+    y = table(pg, y - 6, ["ALLERGIE", "GRAVITÉ", "RÉACTION"], [40, 230, 330], [
+        ("Antibiotiques sulfamides", "Modérée", "Éruption cutanée"),
+        ("Latex", "Légère", "Dermatite de contact"),
+    ])
+    y = table(pg, y - 6, ["TRAITEMENT EN COURS", "DOSE", "POSOLOGIE"], [40, 230, 330], [
+        ("Lévothyroxine", "75 µg", "Chaque matin, avant le petit-déjeuner"),
+        ("Amlodipine", "5 mg", "Une fois par jour"),
+    ])
+    pg.text(40, y, "Éviter les antibiotiques sulfamides. Utiliser des gants sans latex.", "F1", 9.5, ALERT)
+    signature(pg, "Dr Claire Moreau", y=110, lang="fr")
+    write_pdf(OUT / "amara-resume-medical-fr.pdf", pg, "Résumé médical - Amara Okafor (exemple)", "MPDEMO:amara:summary")
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for tid, person in PEOPLE.items():
         make_rx(tid, person)
         make_lab(tid, person)
         make_history(tid, person)
+    make_medplan_de()
+    make_summary_fr()
     for f in sorted(OUT.glob("*.pdf")):
         print(f.name, f.stat().st_size)

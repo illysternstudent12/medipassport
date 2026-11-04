@@ -9,8 +9,9 @@ import { appShell, AppTop, openSheet, toast, mountShell } from './shell.js';
 import { isDesktop } from './ui.js';
 import { DOC_KINDS, detectSample } from '../onboarding/data.js';
 import { langInfo, term } from '../translate/glossary.js';
-import { buildRecords, recordCard, summaryCard, fmtDate, KIND_ICON, currentFacts } from '../translate/records.js';
-import { targetLang, setTargetLang, ensureTranslated, engineFor } from '../translate/state.js';
+import { buildRecords, recordCard, summaryCard, fmtDate, KIND_ICON, currentFacts, setDocLang } from '../translate/records.js';
+import { patientLang, setPatientLang, doctorLang, ensureTranslated, engineFor } from '../translate/state.js';
+import { detectFileLanguage } from '../translate/detect.js';
 import { openLanguagePicker, openAiSettings } from '../translate/picker.js';
 import { aiOn, extractDocument, summarize } from '../translate/ai.js';
 
@@ -29,20 +30,26 @@ const setUploads = (t, list) => { try { localStorage.setItem(upKey(t), JSON.stri
 export const recordsFor = (t) => buildRecords(t, getUploads(t));
 
 /* ---------------------------------------------------------------- pieces */
+/** "4 documents · originals in Japanese and German. You read them in …" */
+function headSub(recs, lang) {
+  const origs = [...new Set(recs.map((r) => r.origLang).filter(Boolean))].map((c) => langInfo(c).name);
+  const list = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(origs);
+  return `${recs.length} documents · originals in ${esc(list)}. You read them in ${esc(langInfo(lang).name)}; doctors choose their own language.`;
+}
 export function LangBar(t, lang, { doctorLink = true } = {}) {
   const info = langInfo(lang);
   const eng = engineFor(lang);
   return `<div class="langbar">
     <button type="button" class="langbar__pick" data-pick-lang>
-      <span class="langbar__k">${icon('translate')} Translate to</span>
+      <span class="langbar__k">${icon('translate')} I read in</span>
       <span class="langbar__v" lang="${lang}" dir="${info.rtl ? 'rtl' : 'ltr'}">${esc(info.native)}</span>
       <span class="langbar__chev">${icon('chevron')}</span>
     </button>
     <div class="langbar__quick" role="group" aria-label="Quick switch">
-      ${[...new Set([t.trip.lang, 'en', t.homeLang])].map((c) => `<button type="button" data-quick-lang="${c}" aria-pressed="${c === lang}" lang="${c}">${esc(langInfo(c).native)}</button>`).join('')}
+      ${[...new Set([lang, t.homeLang, 'en', t.trip.lang])].slice(0, 4).map((c) => `<button type="button" data-quick-lang="${c}" aria-pressed="${c === lang}" lang="${c}">${esc(langInfo(c).native)}</button>`).join('')}
     </div>
     <button type="button" class="langbar__engine langbar__engine--${eng === 'ai' || aiOn() ? 'ai' : 'sim'}" data-ai-settings>${icon('sparkle')}<span>${aiOn() ? 'Live AI' : 'Simulated'}</span></button>
-    ${doctorLink ? `<a class="langbar__doc" href="#/app/doctor?lang=${lang}">${icon('eye')}<span>Doctor view</span></a>` : ''}
+    ${doctorLink ? `<a class="langbar__doc" href="#/app/doctor">${icon('eye')}<span>Doctor view · ${esc(langInfo(doctorLang(t)).native)}</span></a>` : ''}
   </div>`;
 }
 
@@ -51,7 +58,7 @@ function recRow(t, r, lang, selected) {
   const sub = r.source === 'stored' ? `Stored · not read · ${fmtSize(r.upload.size)}`
     : r.source === 'ai' ? `Read by live AI · ${r.facts.length} items`
     : `${r.issuer}`;
-  const langs = r.source === 'stored' ? '' : `<i>${(r.origLang || '?').toUpperCase()}</i>${icon('arrow')}<i class="is-to">${lang.toUpperCase()}</i>`;
+  const langs = r.origLang === lang ? `<i title="Original language">${lang.toUpperCase()}</i>` : r.source === 'stored' ? `<i title="Original language">${(r.origLang || '?').toUpperCase()}</i>` : `<i title="Original: ${esc(langInfo(r.origLang || 'en').name)}">${(r.origLang || '?').toUpperCase()}</i>${icon('arrow')}<i class="is-to">${lang.toUpperCase()}</i>`;
   return `<li data-type="${r.kind}" data-search="${esc(`${title} ${r.issuer} ${r.upload?.name || ''} ${r.kind}`.toLowerCase())}">
     <button type="button" class="dcard dcard--${TONE[r.kind] || 'cream'}" data-rec="${r.id}" aria-pressed="${selected}">
       <span class="dcard__ic">${icon(KIND_ICON[r.kind] || 'file')}</span>
@@ -63,10 +70,28 @@ function recRow(t, r, lang, selected) {
   </li>`;
 }
 
-/** Layered viewer: translation in front, original behind; flip or compare. */
-export function layeredViewer(t, r, lang, mode = 'stack') {
+/** "Original language" line: how it was determined, and a Change button for the patient. */
+function origLine(r, canChange) {
+  const li = r.langInfo || {};
+  const name = r.origLang ? langInfo(r.origLang) : null;
+  const how = !r.origLang ? 'not detected'
+    : li.source === 'manual' ? `set by you${li.auto ? ` (detected: ${langInfo(li.auto).name})` : ''}`
+    : li.source === 'record' ? 'as issued'
+    : li.source === 'ai' ? 'detected by live AI'
+    : `detected automatically · ${li.confidence || 'medium'} confidence`;
+  const unsure = !r.origLang || (li.source === 'detected' && li.confidence === 'low');
+  return `<div class="lview__orig ${unsure ? 'is-unsure' : ''}">
+    ${icon(unsure ? 'alert' : 'globe')}
+    <span>Original language: <b ${name ? `lang="${r.origLang}"` : ''}>${name ? `${esc(name.native)}${name.native !== name.name ? ` · ${esc(name.name)}` : ''}` : 'Unknown'}</b> <small>${how}${unsure ? ' · please check' : ''}</small></span>
+    ${canChange ? `<button type="button" class="lview__change" data-doclang="${esc(r.id)}">${r.origLang ? 'Change' : 'Set language'}</button>` : ''}
+  </div>`;
+}
+
+/** Original and translation together: side by side by default, or layered. */
+export function layeredViewer(t, r, lang, mode = 'compare', { canChange = false } = {}) {
   if (r.source === 'stored') {
     return `<div class="lview">
+      ${origLine(r, canChange)}
       <div class="ufile"><span class="ufile__ic">${icon(r.upload.source === 'Camera' ? 'camera' : 'file')}</span><span><b>${esc(r.upload.name)}</b><small>${fmtSize(r.upload.size)} · ${r.upload.source} · ${r.upload.added}</small></span></div>
       <p class="unote">${r.upload.kind && !r.upload.mine ? 'This sample belongs to another demo traveler, so it was stored but not read.' : aiOn() ? 'Live AI couldn’t read this file. It’s stored with your passport.' : 'Stored with your passport. The simulated engine reads only MediPassport sample PDFs. Turn on live AI to read any PDF or photo.'}</p>
       <div class="dsheet__actions"><button type="button" class="btn btn--ghost" data-remove-upload="${r.upload.id}"><span>Remove upload</span><span class="btn__dot">${icon('close')}</span></button></div>
@@ -75,6 +100,7 @@ export function layeredViewer(t, r, lang, mode = 'stack') {
   const same = r.origLang === lang;
   const eng = r.source === 'ai' || engineFor(lang) === 'ai' ? 'ai' : 'sim';
   return `<div class="lview lview--${same ? 'single' : mode}" data-lview>
+    ${origLine(r, canChange)}
     ${same ? '' : `<div class="lview__bar">
       <div class="segmented lview__mode" role="group" aria-label="View" data-lmode>
         <span class="segmented__thumb" aria-hidden="true"></span>
@@ -135,15 +161,15 @@ export const appDocuments = {
   html() {
     const t = currentTraveler();
     const q = (location.hash.match(/[?&]lang=([\w-]+)/) || [])[1];
-    if (q) setTargetLang(t, q);
-    const lang = targetLang(t);
+    if (q) setPatientLang(t, q);
+    const lang = patientLang(t);
     const recs = recordsFor(t);
     const desk = isDesktop();
     return appShell('documents', `
       ${AppTop(t, { title: 'Documents', desk: 'Documents & translation' })}
       <section class="dhead">
         <h1 class="dhead__h">Records,<br/><span class="serif">in any language.</span></h1>
-        <p class="dhead__sub">${recs.length} documents · originals in ${langInfo(currentFacts(t).homeLang).name}. Doctors see them translated, next to the original.</p>
+        <p class="dhead__sub" data-dsub>${headSub(recs, lang)}</p>
         <div class="dhead__actions">
           <label class="dact dact--black"><input type="file" accept="image/*" capture="environment" data-up="Camera"/>${icon('scan')}<span>Scan</span></label>
           <label class="dact"><input type="file" accept="application/pdf,.pdf,image/*" multiple data-up="Files"/>${icon('upload')}<span>Upload</span></label>
@@ -177,9 +203,9 @@ export const appDocuments = {
   mount(root) {
     const t = currentTraveler();
     const off = [mountShell(root), observeReveals(root)];
-    let lang = targetLang(t);
+    let lang = patientLang(t);
     let selected = isDesktop() ? recordsFor(t)[0]?.id : null;
-    let mode = 'stack';
+    let mode = 'compare';
     const list = root.querySelector('[data-list]');
     const pane = root.querySelector('[data-pane]');
     const status = root.querySelector('[data-tstatus]');
@@ -193,10 +219,11 @@ export const appDocuments = {
       root.querySelector('[data-langbar]').innerHTML = LangBar(t, lang);
       root.querySelector('[data-summary]').innerHTML = summaryCard(t, lang, { engine: engineFor(lang) });
       const recs = recordsFor(t);
+      root.querySelector('[data-dsub]').innerHTML = headSub(recs, lang);
       list.innerHTML = recs.map((r) => recRow(t, r, lang, isDesktop() && String(r.id) === String(selected))).join('');
       if (isDesktop() && selected) {
         const r = find(selected);
-        if (r) { pane.innerHTML = layeredViewer(t, r, lang, mode); bindViewer(pane); }
+        if (r) { pane.innerHTML = layeredViewer(t, r, lang, mode, { canChange: true }); bindViewer(pane); }
       }
       applyFilter();
     };
@@ -204,7 +231,7 @@ export const appDocuments = {
     /* switch language: instant for glossary languages; live AI fills gaps */
     const switchTo = async (code) => {
       lang = code;
-      setTargetLang(t, code);
+      setPatientLang(t, code);
       paint();
       try {
         if (aiOn()) setStatus(`${icon('sparkle')} ${engineFor(code) === 'ai' ? 'Translating with Claude…' : 'Checking for text the glossary doesn’t cover…'}`, 'is-busy');
@@ -225,7 +252,23 @@ export const appDocuments = {
 
     root.addEventListener('click', (e) => {
       if (e.target.closest('[data-pick-lang]')) {
-        openLanguagePicker({ current: lang, suggested: [t.trip.lang, 'en', currentFacts(t).homeLang], onPick: switchTo });
+        openLanguagePicker({ current: lang, title: 'Read my records in', suggested: [t.homeLang, 'en', t.trip.lang], onPick: switchTo });
+        return;
+      }
+      const dl = e.target.closest('[data-doclang]');
+      if (dl) {
+        const r = find(dl.dataset.doclang);
+        if (!r) return;
+        const auto = r.langInfo?.auto || (r.langInfo?.source !== 'manual' ? r.origLang : null);
+        openLanguagePicker({
+          current: r.origLang || '', title: 'Original language of this document', suggested: [auto, t.homeLang, 'en'].filter(Boolean),
+          onPick: (code) => {
+            setDocLang(r.id, code === auto ? null : code);
+            toast(`Original language set to ${langInfo(code).name}.`);
+            if (!isDesktop()) window.dispatchEvent(new HashChangeEvent('hashchange'));
+            switchTo(lang);
+          },
+        });
         return;
       }
       const q = e.target.closest('[data-quick-lang]');
@@ -238,9 +281,9 @@ export const appDocuments = {
         selected = r.id;
         if (isDesktop()) {
           list.querySelectorAll('[data-rec]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-          pane.innerHTML = layeredViewer(t, r, lang, mode); bindViewer(pane);
+          pane.innerHTML = layeredViewer(t, r, lang, mode, { canChange: true }); bindViewer(pane);
         } else {
-          openSheet({ title: r.title ? term(r.title, 'en') : 'Uploaded document', html: layeredViewer(t, r, lang, 'stack'), mount: bindViewer });
+          openSheet({ title: r.title ? term(r.title, 'en') : 'Uploaded document', html: layeredViewer(t, r, lang, 'compare', { canChange: true }), mount: bindViewer });
         }
       }
       const m = e.target.closest('[data-lmode] [data-m]');
@@ -277,7 +320,9 @@ export const appDocuments = {
         list.prepend(temp);
         temp.scrollIntoView({ block: 'nearest' });
         const tag = await detectSample(file).catch(() => null);
+        const det = await detectFileLanguage(file);
         const u = {
+          lang: det.lang, langConf: det.confidence, langSource: det.lang ? 'detected' : 'unknown',
           id, name: file.name, size: file.size, source,
           kind: tag?.kind ?? null, mine: tag ? tag.traveler === t.id : false,
           added: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()),
@@ -289,15 +334,16 @@ export const appDocuments = {
         }
         if (!alive) return;
         setUploads(t, [...getUploads(t), u]);
-        selected = id;
+        selected = u.kind && u.mine ? `smp-${u.kind}` : id;
         temp.remove();
         paint();
-        list.querySelector(`[data-rec="${id}"]`)?.classList.add('is-fresh');
-        toast(u.kind && u.mine ? `${DOC_KINDS[u.kind].label} recognized. Translation ready.`
+        list.querySelector(`[data-rec="${selected}"]`)?.classList.add('is-fresh');
+        const detected = u.ai?.lang || u.lang;
+        toast(u.kind && u.mine ? `${DOC_KINDS[u.kind].label} recognized · ${detected ? `${langInfo(detected.split('-')[0]).name} detected` : 'language unknown'}. Translation ready.`
           : u.ai ? `Read by live AI: ${(u.ai.allergies.length + u.ai.medications.length + u.ai.conditions.length + u.ai.tests.length)} items. Check them against the original.`
           : `${file.name} stored with your passport.`);
         if (u.ai) switchTo(lang);
-        if (!isDesktop()) list.querySelector(`[data-rec="${id}"]`)?.click();
+        if (!isDesktop()) list.querySelector(`[data-rec="${selected}"]`)?.click();
       }
     };
     root.addEventListener('change', (e) => {

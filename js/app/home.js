@@ -6,6 +6,8 @@ import { observeReveals } from '../interactions.js';
 import { currentTraveler, greeting, localTime, nextDose, fmtIn, LANG_NAMES, LANG_LABEL } from './data.js';
 import { appShell, AppTop, Portrait, Scene, APP_ROUTES, openSheet, mountShell } from './shell.js';
 import { recordsFor } from './documents.js';
+import { langInfo } from '../translate/glossary.js';
+import { patientLang, doctorLang } from '../translate/state.js';
 
 
 export function PassportCard(t, { href = APP_ROUTES.passport, cls = '' } = {}) {
@@ -139,9 +141,9 @@ export const appHome = {
             ${icon('file')}<b>Documents</b><small>${recordsFor(t).length} records</small>
             <span class="quick__stack" aria-hidden="true"><i></i><i></i><i></i></span>
           </a>
-          <a class="quick__tile quick__tile--mint" href="${APP_ROUTES.documents}?lang=${t.trip.lang}">
-            ${icon('translate')}<b>Translations</b><small>Ready in ${LANG_NAMES[t.trip.lang]}</small>
-            <span class="quick__lang" aria-hidden="true">${LANG_NAMES[t.homeLang]} → ${LANG_NAMES[t.trip.lang]}</span>
+          <a class="quick__tile quick__tile--mint" href="${APP_ROUTES.documents}">
+            ${icon('translate')}<b>Translations</b><small>Doctors read in ${langInfo(doctorLang(t)).native}</small>
+            <span class="quick__lang" aria-hidden="true">Any language → ${langInfo(patientLang(t)).native}</span>
           </a>
           <a class="quick__tile quick__tile--black" href="#/app/share">
             <span class="quick__qr">${QR(t.id.length * 7, { fg: '#FBF3EB' })}</span><b>Share QR</b><small>Temporary doctor access</small>
