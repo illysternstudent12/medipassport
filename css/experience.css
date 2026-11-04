@@ -138,3 +138,9 @@ html:has(body.is-framed) { scrollbar-width: none; }
   .sres__code { white-space: nowrap; font-size: 2.6rem; }
 }
 .sres__code { white-space: nowrap; }
+
+/* Guide docking on phones: space at the end of the page so the card never hides content */
+@media (max-width: 959px) {
+  body.has-tour #main { padding-bottom: var(--gtour-space, 0px); }
+  .gtour { transition: bottom 220ms ease; }
+}

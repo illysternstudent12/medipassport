@@ -98,5 +98,5 @@ export function setPresenting(on) {
   try { if (on) localStorage.setItem(PRESENT_KEY, '1'); else localStorage.removeItem(PRESENT_KEY); } catch { /* ignore */ }
   document.documentElement.classList.toggle('is-presenting', on);
 }
-/** Inside the present-mode phone frame or doctor window. */
-export const inFrame = () => { try { return window.self !== window.top; } catch { return true; } };
+/** Inside the present-mode stage (its phone frame or doctor window). */
+export const inFrame = () => window.name === 'mp-stage';

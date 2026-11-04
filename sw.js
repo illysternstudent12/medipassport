@@ -3,7 +3,7 @@
 // requests are network-first (fresh when online, cached when offline).
 // Versioned libraries from CDNs are cache-first. Live services (Overpass,
 // Nominatim, map tiles, Supabase) always go to the network.
-const VERSION = 'ea587e55bf';
+const VERSION = 'd82469d215';
 const CACHE = `mp-${VERSION}`;
 const LIBS = 'mp-libs-v1';
 const PRECACHE = [

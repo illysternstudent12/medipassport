@@ -117,7 +117,7 @@ function spot() {
   }
 }
 let spotTimer = 0;
-const queueSpot = () => { clearTimeout(spotTimer); spotTimer = setTimeout(spot, 160); };
+const queueSpot = () => { clearTimeout(spotTimer); spotTimer = setTimeout(() => { spot(); place(); }, 160); };
 const observed = new WeakSet();
 function observe(win) {
   try {
@@ -130,6 +130,35 @@ function observe(win) {
   } catch { /* not ready */ }
 }
 
+/* ---------------------------------------------------------------- docking (phones) */
+// The card floats above whatever is pinned to the bottom of the screen
+// (onboarding's Continue button, the tab bar, the help button), never on top
+// of it, and the page gets matching space at the end so nothing is hidden.
+const DOCK_AVOID = '.ob__actions, .bnav, .fab-sos.is-in, .pt-bar__end';
+let placeRaf = 0;
+function place() {
+  cancelAnimationFrame(placeRaf);
+  placeRaf = requestAnimationFrame(() => {
+    if (!el || stage) return;
+    const phone = !matchMedia('(min-width: 960px)').matches;
+    const onMap = el.dataset.screen === 'app-map';
+    if (!phone || onMap) { el.style.bottom = ''; document.documentElement.style.removeProperty('--gtour-space'); return; }
+    let top = innerHeight;
+    document.querySelectorAll(DOCK_AVOID).forEach((x) => {
+      const r = x.getBoundingClientRect();
+      if (!r.height || r.top < innerHeight * 0.45 || r.top >= innerHeight) return;
+      const pos = getComputedStyle(x).position;
+      if (pos !== 'fixed' && pos !== 'sticky') return;
+      top = Math.min(top, r.top);
+    });
+    const gap = top < innerHeight ? 8 : 12;
+    el.style.bottom = `${Math.round(innerHeight - top + gap)}px`;
+    document.documentElement.style.setProperty('--gtour-space', `${Math.round(el.offsetHeight + gap + 8)}px`);
+  });
+}
+addEventListener('resize', place);
+addEventListener('scroll', place, { passive: true });
+
 /* ---------------------------------------------------------------- card */
 let el = null;
 function flash(msg) {
@@ -139,7 +168,7 @@ function flash(msg) {
 function render() {
   if (inFrame()) return; // the frames never show their own guide
   const st = read();
-  if (!st) { el?.remove(); el = null; document.body.classList.remove('has-tour'); spot(); return; }
+  if (!st) { el?.remove(); el = null; document.body.classList.remove('has-tour'); document.documentElement.style.removeProperty('--gtour-space'); spot(); return; }
   if (!el) {
     el = document.createElement('aside');
     el.className = 'gtour';
@@ -181,12 +210,13 @@ function render() {
       </div>`;
   if (stage) { observe(stage.phone.contentWindow); observe(stage.doctor.contentWindow); } else observe(window);
   queueSpot();
+  place();
 }
 function onClick(e) {
   const b = e.target.closest('[data-t]'); if (!b) return;
   const st = read(); if (!st) return;
   const a = b.dataset.t;
-  if (a === 'more') { el.classList.toggle('is-open'); return; }
+  if (a === 'more') { el.classList.toggle('is-open'); place(); return; }
   if (a === 'min' || a === 'open') { st.min = a === 'min'; write(st); render(); return; }
   if (a === 'exit') { write(null); render(); if (stage) location.hash = '#/'; return; }
   if (a === 'prev') { go(st.step - 1); return; }

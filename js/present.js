@@ -25,13 +25,13 @@ export const presentPage = {
     </header>
     <div class="stage__floor">
       <figure class="stage__phone" data-phone-wrap>
-        <div class="stage__device" data-phone-scale><span class="stage__notch" aria-hidden="true"></span><iframe title="Patient’s phone" data-phone></iframe></div>
+        <div class="stage__device" data-phone-scale><span class="stage__notch" aria-hidden="true"></span><iframe title="Patient’s phone" name="mp-stage" data-phone></iframe></div>
         <figcaption>Lukas’s phone</figcaption>
       </figure>
       <figure class="stage__doctor" data-doctor-wrap hidden>
         <div class="stage__window" data-doctor-scale>
           <div class="stage__chrome"><i></i><i></i><i></i><span data-doctor-title>Doctor’s computer · Tokyo</span></div>
-          <iframe title="Doctor’s computer" data-doctor></iframe>
+          <iframe title="Doctor’s computer" name="mp-stage" data-doctor></iframe>
         </div>
         <figcaption data-doctor-cap>Doctor’s computer</figcaption>
       </figure>
