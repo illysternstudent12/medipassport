@@ -23,6 +23,11 @@ export const DEMO = {
   },
   kenji: { lat: 38.71394, lng: -9.13938, label: 'Baixa, Lisbon', tz: 'Europe/Lisbon' },
   amara: { lat: 35.00393, lng: 135.77810, label: 'Gion, Kyoto', tz: 'Asia/Tokyo' },
+  lukas: {
+    lat: 35.69098, lng: 139.70028, label: 'Shinjuku, Tokyo', tz: 'Asia/Tokyo',
+    snapshot: 'assets/demo-data/tokyo-facilities.json',
+    scenario: 'Lukas is short of breath after climbing the stairs at Shinjuku Station, and his salbutamol inhaler isn’t helping enough. He is conscious and can speak in short sentences. He doesn’t speak Japanese.',
+  },
 };
 
 /* ---------------------------------------------------------------- geometry */

@@ -1,7 +1,8 @@
 """Build the demo facility snapshot from a raw Overpass API response.
 
 Usage (from the project root):
-    python tools/make_facility_snapshot.py path/to/overpass.json
+    python tools/make_facility_snapshot.py path/to/overpass.json [out-name lat lng "label"]
+    e.g. python tools/make_facility_snapshot.py raw.json tokyo-facilities.json 35.69098 139.70028 "Shinjuku, Tokyo"
 
 The query used for the Barcelona demo (Park Guell, 3 km radius):
     [out:json][timeout:60];
@@ -37,7 +38,8 @@ def address(t):
     return ", ".join(x for x in (street, city) if x) or t.get("addr:full", "")
 
 
-def main(src):
+def main(src, name="barcelona-facilities.json", lat=41.41362, lng=2.15297, label="Park Guell, Barcelona"):
+    out_path = OUT.parent / name
     raw = json.loads(Path(src).read_text(encoding="utf-8"))
     seen, out = set(), []
     for e in raw.get("elements", []):
@@ -63,17 +65,17 @@ def main(src):
             "network": "unverified",
         })
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({
+    out_path.write_text(json.dumps({
         "captured": raw.get("osm3s", {}).get("timestamp_osm_base", ""),
-        "center": {"lat": 41.41362, "lng": 2.15297, "radius_m": 3000, "label": "Park Guell, Barcelona"},
+        "center": {"lat": float(lat), "lng": float(lng), "radius_m": 3000, "label": label},
         "attribution": "Data (c) OpenStreetMap contributors, ODbL 1.0. https://www.openstreetmap.org/copyright",
         "facilities": out,
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     counts = {}
     for f in out:
         counts[f["type"]] = counts.get(f["type"], 0) + 1
-    print(f"{len(out)} facilities -> {OUT.name}", counts)
+    print(f"{len(out)} facilities -> {out_path.name}", counts)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(*sys.argv[1:])

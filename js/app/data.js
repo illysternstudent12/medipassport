@@ -1,11 +1,12 @@
-// Three fictional travelers with consistent medical profiles.
+// Four fictional travelers with consistent medical profiles.
+// Lukas (Berlin → Tokyo) is the guided-demo traveler.
 // All people, insurers, IDs and records are invented sample data.
 
 export const LANG_NAMES = {
-  he: 'עברית', en: 'English', es: 'Español', ja: '日本語', pt: 'Português',
+  he: 'עברית', en: 'English', es: 'Español', ja: '日本語', pt: 'Português', de: 'Deutsch',
 };
 export const LANG_LABEL = {
-  he: 'Hebrew', en: 'English', es: 'Spanish', ja: 'Japanese', pt: 'Portuguese',
+  he: 'Hebrew', en: 'English', es: 'Spanish', ja: 'Japanese', pt: 'Portuguese', de: 'German',
 };
 
 export const TRAVELERS = [
@@ -109,6 +110,40 @@ export const TRAVELERS = [
     tests: [
       { name: 'TSH', value: '2.1 mIU/L', ref: '0.4 – 4.0', date: '22 Sep 2026' },
       { name: 'Potassium', value: '4.2 mmol/L', ref: '3.5 – 5.3', date: '22 Sep 2026' },
+    ],
+  },
+  {
+    id: 'lukas',
+    first: 'Lukas', last: 'Becker',
+    dob: '11 Apr 1985', age: 41, sex: 'Male',
+    nationality: 'German', flag: 'DE',
+    homeLang: 'de', speaks: 'German, English',
+    medicalId: 'MP-DE-1104-6630',
+    blood: 'A+',
+    portrait: { bg: 'mint', skin: '#EBC3A4', hair: '#7A5236', hairStyle: 'short', top: '#1F2A44' },
+    trip: {
+      city: 'Tokyo', country: 'Japan', code: 'JP', tz: 'Asia/Tokyo',
+      lang: 'ja', emergency: '119', dates: '1 Nov – 15 Nov', scene: 'mountains',
+    },
+    insurance: {
+      provider: 'Sternweg Reiseschutz', plan: 'Welt Komfort', policy: 'STW-2026-30418',
+      validUntil: '31 Dec 2026', status: 'Active', network: 3,
+    },
+    contact: { name: 'Clara Becker', relation: 'Partner', phone: '+49 151 •••• 4471' },
+    allergies: [
+      { name: 'Penicillin', severity: 'Severe', reaction: 'Anaphylaxis (2015)', note: 'Avoid all penicillin-class antibiotics.' },
+    ],
+    conditions: [
+      { name: 'Hypertension', since: '2021', note: 'Well controlled on medication.' },
+      { name: 'Asthma', since: 'Childhood', note: '' },
+    ],
+    medications: [
+      { name: 'Amlodipine', dose: '5 mg', schedule: 'Once daily', times: ['08:00'] },
+      { name: 'Salbutamol', dose: '100 µg', schedule: 'As needed', times: [] },
+    ],
+    tests: [
+      { name: 'Creatinine', value: '0.9 mg/dL', ref: '0.7 – 1.3', date: '1 Oct 2026' },
+      { name: 'Potassium', value: '4.4 mmol/L', ref: '3.5 – 5.1', date: '1 Oct 2026' },
     ],
   },
 ];

@@ -78,6 +78,29 @@ const F = {
       { kind: 'history', title: 'doc_history', issuer: 'Elmfield GP Surgery, Bristol', clinician: 'Dr. Sarah Whitfield, MRCGP', date: '2026-01-10' },
     ],
   },
+  // Guided demo: German originals (homeLang 'de'), read in Japan.
+  lukas: {
+    dob: '1985-04-11', homeLang: 'de',
+    allergies: [{ kind: 'allergy', name: 'penicillin', severity: 'severe', reaction: 'anaphylaxis', year: 2015, advice: 'avoid_penicillins', critical: true }],
+    conditions: [
+      { kind: 'condition', name: 'hypertension', since: { y: 2021 }, note: 'well_controlled' },
+      { kind: 'condition', name: 'asthma', since: { code: 'childhood' } },
+    ],
+    medications: [
+      { kind: 'med', name: 'amlodipine', dose: { n: 5, unit: 'mg' }, schedule: 'once_daily' },
+      { kind: 'med', name: 'salbutamol', dose: { n: 100, unit: 'µg' }, schedule: 'as_needed' },
+    ],
+    tests: [
+      { kind: 'test', name: 'creatinine', value: { n: 0.9, d: 1, unit: 'mg/dL' }, ref: { range: [0.7, 1.3], d: 1 }, status: 'in_range', key: true },
+      { kind: 'test', name: 'potassium', value: { n: 4.4, d: 1, unit: 'mmol/L' }, ref: { range: [3.5, 5.1], d: 1 }, status: 'in_range' },
+    ],
+    blood: 'A+',
+    docs: [
+      { kind: 'rx', title: 'doc_rx', issuer: 'Hausarztpraxis Dr. med. Jonas Krüger, Berlin', clinician: 'Dr. med. Jonas Krüger', date: '2026-10-08' },
+      { kind: 'lab', title: 'doc_lab', issuer: 'Spree-Labor Diagnostik, Berlin', clinician: 'Dr. med. Jonas Krüger', date: '2026-10-01' },
+      { kind: 'history', title: 'doc_history', issuer: 'Hausarztpraxis Dr. med. Jonas Krüger, Berlin', clinician: 'Dr. med. Jonas Krüger', date: '2026-01-15' },
+    ],
+  },
 };
 export const KIND_ICON = { rx: 'rx', lab: 'flask', history: 'file', upload: 'upload' };
 
@@ -124,7 +147,8 @@ export function setDocLang(recId, lang) {
 export const SAMPLE_META = {
   medplan: { title: 'doc_medplan', lang: 'de', issuer: 'Hausarztpraxis Dr. med. Lena Hoffmann, Berlin', clinician: 'Dr. med. Lena Hoffmann', date: '2026-05-05' },
   summary: { title: 'doc_history', lang: 'fr', issuer: 'Cabinet médical Dr Claire Moreau, Paris', clinician: 'Dr Claire Moreau', date: '2025-08-14' },
-  rx: { lang: 'en' }, lab: { lang: 'en' }, history: { lang: 'en' },
+  // rx / lab / history samples are issued in the traveler's home language (see buildRecords).
+  rx: {}, lab: {}, history: {},
 };
 /** Stable id for an uploaded sample document, so shares can reference it on any device. */
 export const sampleRecId = (kind) => `smp-${kind}`;
@@ -162,7 +186,7 @@ export function buildRecords(t, uploads = []) {
         ...base, ...(meta.issuer ? { issuer: meta.issuer, clinician: meta.clinician, date: meta.date, title: meta.title } : {}),
         id, kind: base.kind, source: 'upload', upload: u, sampleKind: u.kind,
         facts: factsFor(u.kind), banner: ['rx', 'medplan'].includes(u.kind) ? f.allergies : [],
-      }, u.lang || meta.lang || 'en', { source: u.langSource || 'detected', confidence: u.langConf || 'medium' }));
+      }, u.lang || meta.lang || f.homeLang, { source: u.langSource || 'detected', confidence: u.langConf || 'medium' }));
     } else if (u.read) {
       // Read by the real pipeline (pdf.js / OCR → glossary or AI extraction), reviewed by the patient.
       recs.unshift(withLang({

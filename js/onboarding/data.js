@@ -15,10 +15,10 @@ const FLAGS = {
 export const Flag = (code, cls = 'flag') => `<svg class="${cls}" viewBox="0 0 60 40" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${FLAGS[code]}</svg>`;
 
 export const COUNTRIES = [
+  { code: 'DE', name: 'Germany', native: 'Deutschland', traveler: 'lukas', tone: 'mint' },
   { code: 'IL', name: 'Israel', native: 'ישראל', traveler: 'maya', tone: 'mint' },
   { code: 'JP', name: 'Japan', native: '日本', traveler: 'kenji', tone: 'peach' },
   { code: 'GB', name: 'United Kingdom', native: 'UK', traveler: 'amara', tone: 'gray' },
-  { code: 'DE', name: 'Germany', native: 'Deutschland', soon: true },
   { code: 'FR', name: 'France', native: 'France', soon: true },
   { code: 'US', name: 'United States', native: 'USA', soon: true },
 ];
@@ -34,6 +34,9 @@ const MARKS = {
   rays: Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * Math.PI * 2; return `<line x1="${24 + Math.cos(a) * 7}" y1="${24 + Math.sin(a) * 7}" x2="${24 + Math.cos(a) * 19}" y2="${24 + Math.sin(a) * 19}" stroke="currentColor" stroke-width="${i % 2 ? 2 : 3.4}" stroke-linecap="round"/>`; }).join('') + '<circle cx="24" cy="24" r="4" fill="currentColor"/>',
   globe: '<circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="2.4"/><ellipse cx="24" cy="24" rx="8" ry="18" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M6 24h36" stroke="currentColor" stroke-width="2.4"/><circle cx="24" cy="6" r="3.2" fill="currentColor"/>',
   thistle: '<path d="M16 24c0-9 4-15 8-15s8 6 8 15z" fill="currentColor"/>' + [-14, -7, 0, 7, 14].map((x) => `<line x1="24" y1="12" x2="${24 + x}" y2="2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`).join('') + '<path d="M18 24h12l-3 6h-6z" fill="currentColor" opacity=".55"/><rect x="22.6" y="30" width="2.8" height="14" fill="currentColor"/>',
+  path: '<path d="M8 40C14 30 20 26 24 24s10-6 16-16" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="40" cy="8" r="5" fill="currentColor"/><path d="M8 40h10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>',
+  harbor: '<path d="M24 4v28" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M10 26c2 9 8 14 14 14s12-5 14-14" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><circle cx="24" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15 18h18" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>',
+  leaf: '<path d="M24 44V20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M24 30C10 30 6 18 8 6c12 0 18 8 16 24z" fill="currentColor"/><path d="M24 26c12 0 16-10 15-18-9 0-15 6-15 18z" fill="currentColor" opacity=".55"/>',
   bramble: [[17, 18], [27, 16], [22, 26], [32, 25], [14, 28], [25, 35]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="6.2" fill="currentColor"/>`).join('') + '<path d="M24 10c3-6 8-7 12-6-2 4-6 6-12 6z" fill="currentColor" opacity=".55"/>',
 };
 
@@ -61,6 +64,14 @@ export const INSURERS = {
       plans: ['Thistle Care', 'Thistle Care+'] },
     { id: 'bramble', name: 'bramble', full: 'Bramble Mutual', mark: 'bramble', bg: '#D4CBC5', fg: '#000', font: 'round', tag: 'Member-owned travel insurance',
       plans: ['Bramble Everyday', 'Bramble Long Stay'] },
+  ],
+  DE: [
+    { id: 'sternweg', name: 'Sternweg', full: 'Sternweg Reiseschutz', mark: 'path', bg: '#C1DEBA', fg: '#000', font: 'serif', tag: 'Auslandsreise-Krankenschutz weltweit',
+      plans: ['Welt Komfort', 'Welt Basis', 'Langzeit Ausland'] },
+    { id: 'hafenlicht', name: 'HAFENLICHT', full: 'Hafenlicht Assekuranz', mark: 'harbor', bg: '#000', fg: '#E7C4B1', font: 'wide', tag: 'Jahresreiseschutz für Vielreisende',
+      plans: ['Jahres-Police', 'Einzelreise'] },
+    { id: 'lindenblatt', name: 'lindenblatt', full: 'Lindenblatt Versicherungsverein', mark: 'leaf', bg: '#E7C4B1', fg: '#000', font: 'round', tag: 'Genossenschaftlicher Reiseschutz',
+      plans: ['Linde Standard', 'Linde Plus'] },
   ],
 };
 
@@ -94,6 +105,7 @@ export const SAMPLES = {
   maya: ['rx', 'lab', 'history'],
   kenji: ['rx', 'lab', 'history', 'medplan'],
   amara: ['rx', 'lab', 'history', 'summary'],
+  lukas: ['rx', 'lab', 'history'],
 };
 export const sampleUrl = (traveler, kind) => `assets/demo-docs/${traveler}-${DOC_KINDS[kind].file}.pdf`;
 

@@ -283,6 +283,44 @@ def make_summary_fr():
     write_pdf(OUT / "amara-resume-medical-fr.pdf", pg, "Résumé médical - Amara Okafor (exemple)", "MPDEMO:amara:summary")
 
 
+def make_lukas_de():
+    """Lukas (guided demo): German originals from Berlin. Values MUST match js/app/data.js and records.js."""
+    who = {"name": "Lukas Becker", "dob": "11.04.1985", "sex": "männlich", "nat": "deutsch", "pno": "B-40518"}
+    clinic, city, doc = "Hausarztpraxis Dr. med. Jonas Krüger", "Berlin, Deutschland", "Dr. med. Jonas Krüger"
+    pg = frame(None, who, clinic, "Rezept", "08.10.2026", "de", who, city)
+    pg.rect(40, 548, 515, 26, (0.95, 0.85, 0.81))
+    pg.text(52, 557, "ALLERGIE: PENICILLIN (ANAPHYLAXIE)", "F2", 10, ALERT)
+    y = table(pg, 520, ["WIRKSTOFF", "DOSIS", "EINNAHME", "HINWEIS"], [40, 200, 300, 430], [
+        ("Amlodipin", "5 mg", "Einmal täglich", "morgens"),
+        ("Salbutamol", "100 µg", "Bei Bedarf", "bei Atemnot 1-2 Hübe"),
+    ])
+    signature(pg, doc, lang="de")
+    write_pdf(OUT / "lukas-prescription.pdf", pg, "Rezept - Lukas Becker (Muster)", "MPDEMO:lukas:rx")
+
+    pg = frame(None, who, "Spree-Labor Diagnostik", "Laborbefund", "01.10.2026", "de", who, city)
+    y = table(pg, 560, ["UNTERSUCHUNG", "ERGEBNIS", "REFERENZBEREICH"], [40, 300, 430], [
+        ("Kreatinin", "0,9 mg/dl", "0,7 - 1,3"),
+        ("Kalium", "4,4 mmol/l", "3,5 - 5,1"),
+    ], 11)
+    pg.text(40, y, f"Angefordert von {doc}. Befund vom Labor freigegeben (Muster).", "F1", 9)
+    signature(pg, "Spree-Labor Diagnostik", lang="de")
+    write_pdf(OUT / "lukas-lab-report.pdf", pg, "Laborbefund - Lukas Becker (Muster)", "MPDEMO:lukas:lab")
+
+    pg = frame(None, who, clinic, "Anamnese", "15.01.2026", "de", who, city)
+    pg.text(40, 560, "BLUTGRUPPE", "F2", 7.5, (0.4, 0.4, 0.4))
+    pg.text(40, 542, "A Rh positiv", "F2", 14)
+    y = table(pg, 505, ["DIAGNOSE", "SEIT", "BEMERKUNG"], [40, 230, 330], [
+        ("Arterielle Hypertonie", "2021", "Unter Medikation gut eingestellt."),
+        ("Asthma bronchiale", "Kindheit", ""),
+    ])
+    y = table(pg, y - 6, ["ALLERGIE", "SCHWEREGRAD", "REAKTION"], [40, 230, 330], [
+        ("Penicillin", "Schwer", "Anaphylaxie (2015)"),
+    ])
+    pg.text(40, y, "Alle Antibiotika der Penicillin-Gruppe vermeiden.", "F1", 9.5, ALERT)
+    signature(pg, doc, lang="de")
+    write_pdf(OUT / "lukas-medical-history.pdf", pg, "Anamnese - Lukas Becker (Muster)", "MPDEMO:lukas:history")
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     for tid, person in PEOPLE.items():
@@ -291,5 +329,6 @@ if __name__ == "__main__":
         make_history(tid, person)
     make_medplan_de()
     make_summary_fr()
+    make_lukas_de()
     for f in sorted(OUT.glob("*.pdf")):
         print(f.name, f.stat().st_size)
