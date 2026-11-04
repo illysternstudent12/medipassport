@@ -7,6 +7,8 @@ import { langInfo } from '../translate/glossary.js';
 import { patientLang, setPatientLang, doctorLang, setDoctorLang, destinationLang } from '../translate/state.js';
 import { openLanguagePicker } from '../translate/picker.js';
 import { recordsFor } from './documents.js';
+import { fxOn, setFx, haptic, chime } from '../fx.js';
+import { confirmReset } from '../tour.js';
 
 const SETTINGS = [
   { key: 'autoTranslate', label: 'Auto-translate on arrival', hint: 'Switch your file to the local language when you land.', on: true },
@@ -67,6 +69,11 @@ export const appProfile = {
       <section class="p-settings reveal" aria-label="Settings">
         <div class="sec-head"><h2>Settings</h2></div>
         <ul class="settings">
+          <li><label class="toggle">
+            <span class="toggle__txt"><b>Sounds &amp; haptics</b><small>A soft chime and a vibration on key moments: passport activated, share created, access revoked.</small></span>
+            <input type="checkbox" role="switch" data-fx ${fxOn() ? 'checked' : ''}/>
+            <span class="toggle__ui" aria-hidden="true"></span>
+          </label></li>
           ${SETTINGS.map((s) => `<li>
             <label class="toggle">
               <span class="toggle__txt"><b>${s.label}</b><small>${s.hint}</small></span>
@@ -83,7 +90,9 @@ export const appProfile = {
           <a class="ptile ptile--mint" href="#/app/share">${icon('qr')}<span class="label">Patients</span><b>Secure sharing</b><small>QR, links, access codes</small></a>
           <a class="ptile ptile--peach" href="#/insurer">${icon('umbrella')}<span class="label">Insurers</span><b>Insurer console</b><small>Simulated partner view</small></a>
           <a class="ptile ptile--mint ptile--wide" href="#/tour">${icon('play')}<span class="label">12 steps · about 5 minutes</span><b>Guided demo: Berlin to Tokyo</b><small>Lukas Becker gets medical help in Japan</small></a>
-          <a class="ptile ptile--gray ptile--wide" href="#/app/setup">${icon('wifi')}<span class="label">Account &amp; APIs</span><b>Connected services</b><small>What’s live · backend · sign in</small></a>
+          <a class="ptile ptile--peach only-desk" href="#/tour?present">${icon('eye')}<span class="label">Pitching on a laptop</span><b>Present mode</b><small>Phone frame, doctor’s screen and guide side by side</small></a>
+          <button type="button" class="ptile ptile--cream" data-reset-demo>${icon('refresh')}<span class="label">Before each demo</span><b>Reset demo</b><small>Clears onboarding, uploads, shares and requests on this device</small></button>
+          <a class="ptile ptile--gray ptile--wide dev-only" href="#/app/setup">${icon('wifi')}<span class="label">Account &amp; APIs</span><b>Connected services</b><small>What’s live · backend · sign in</small></a>
         </div>
       </section>
 
@@ -107,6 +116,8 @@ export const appProfile = {
         },
       });
     }));
+    root.querySelector('[data-fx]').addEventListener('change', (e) => { setFx(e.target.checked); if (e.target.checked) { haptic('success'); chime('success'); } toast(`Sounds & haptics ${e.target.checked ? 'on' : 'off'}.`); });
+    root.querySelector('[data-reset-demo]').addEventListener('click', () => confirmReset());
     root.querySelectorAll('[data-pref]').forEach((inp) => inp.addEventListener('change', () => {
       try { localStorage.setItem(prefKey(t, inp.dataset.pref), inp.checked ? '1' : '0'); } catch { /* ignore */ }
       toast(`${inp.closest('label').querySelector('b').textContent}: ${inp.checked ? 'on' : 'off'}`);

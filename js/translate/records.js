@@ -170,8 +170,10 @@ export function buildRecords(t, uploads = []) {
     origLang: over[rec.id] || lang,
     langInfo: over[rec.id] ? { source: 'manual', confidence: 'high', auto: lang } : info,
   });
+  const ob = getOnboarding();
+  const signup = ob && ob.travelerId === t.id ? ob.signupDocs || [] : [];
   const recs = f.docs.map((d) => withLang({
-    id: `${t.id}-${d.kind}`, ...d, source: 'home',
+    id: `${t.id}-${d.kind}`, ...d, source: 'home', signup: signup.find((x) => x.kind === d.kind)?.name || null,
     facts: factsFor(d.kind), banner: d.kind === 'rx' ? f.allergies : [],
   }, f.homeLang, { source: 'record', confidence: 'high' }));
   const seen = new Set();

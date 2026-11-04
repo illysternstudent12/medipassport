@@ -1,0 +1,21 @@
+{
+  "name": "MediPassport",
+  "short_name": "MediPassport",
+  "description": "Your medical history, anywhere. A digital medical passport for international travelers (demo with fictional data).",
+  "start_url": "./#/app",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF3EB",
+  "theme_color": "#FBF3EB",
+  "categories": ["medical", "travel", "health"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "I need medical help", "short_name": "Emergency", "url": "./#/app/emergency" },
+    { "name": "Guided demo", "short_name": "Demo", "url": "./#/tour" }
+  ]
+}

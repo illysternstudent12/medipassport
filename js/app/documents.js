@@ -16,6 +16,7 @@ import { aiOn, summaryOn, providerName, summarize } from '../translate/ai.js';
 import { processDocument } from '../docs/process.js';
 import { openReview } from '../docs/review.js';
 import { isConfigured, currentUser, saveDocument } from '../backend/supabase.js';
+import { morph, illus, moment } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmtSize = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
@@ -65,8 +66,8 @@ function recRow(t, r, lang, selected) {
   return `<li data-type="${r.kind}" data-search="${esc(`${title} ${r.issuer} ${r.upload?.name || ''} ${r.kind}`.toLowerCase())}">
     <button type="button" class="dcard dcard--${TONE[r.kind] || 'cream'}" data-rec="${r.id}" aria-pressed="${selected}">
       <span class="dcard__ic">${icon(KIND_ICON[r.kind] || 'file')}</span>
-      <span class="dcard__txt"><small>${r.source === 'home' ? 'Home clinic' : 'Upload'} · ${fmtDate(r.date, 'en') || r.upload?.added || ''}</small><b>${esc(title)}</b><span class="dcard__preview">${esc(sub)}</span></span>
-      <span class="dcard__type">${r.source === 'home' ? 'Original' : r.source === 'ai' ? 'AI-read' : r.source === 'read' ? 'Read' : 'Upload'}</span>
+      <span class="dcard__txt"><small>${r.signup ? `Uploaded at sign-up · ${esc(r.signup)}` : r.source === 'home' ? `Home clinic · ${fmtDate(r.date, 'en')}` : `Upload · ${r.upload?.added || ''}`}</small><b>${esc(title)}</b><span class="dcard__preview">${esc(sub)}</span></span>
+      <span class="dcard__type">${r.signup ? 'Uploaded' : r.source === 'home' ? 'Original' : r.source === 'ai' ? 'AI-read' : r.source === 'read' ? 'Read' : 'Upload'}</span>
       <span class="dcard__date">${fmtDate(r.date, 'en') || r.upload?.added || ''}</span>
       <span class="dcard__langs dcard__flow">${r.upload && r.source !== 'home' ? '<i class="is-new">New</i>' : ''}${langs}</span>
     </button>
@@ -195,7 +196,7 @@ export const appDocuments = {
         <div class="dlist-wrap">
           <div class="dtable-head" aria-hidden="true"><span>Document</span><span>Source</span><span>Date</span><span>Translation</span></div>
           <ul class="dlist" data-list>${recs.map((r, i) => recRow(t, r, lang, desk && i === 0)).join('')}</ul>
-          <p class="dempty" data-empty hidden>No documents match.</p>
+          <div class="dempty" data-empty hidden>${illus('search')}<b>No documents match</b><span>Try another filter or search.</span></div>
           <div class="ddrop" data-drop>${icon('upload')}<span><b>Drop files to add them</b><small>Any PDF or photo · read on this device (PDF text or OCR) · you check every item before saving</small></span></div>
         </div>
         <aside class="dpane" data-pane aria-live="polite"></aside>
@@ -233,9 +234,11 @@ export const appDocuments = {
 
     /* switch language: instant for glossary languages; a connected translation service fills gaps */
     const switchTo = async (code) => {
+      const changed = lang !== code;
       lang = code;
       setPatientLang(t, code);
       paint();
+      if (changed) { morph(root.querySelector('[data-summary]')); morph(pane); }
       try {
         if (aiOn()) setStatus(`${icon('sparkle')} ${engineFor(code) === 'ai' ? `Translating with ${esc(providerName())}…` : 'Checking for text the glossary doesn’t cover…'}`, 'is-busy');
         const res = await ensureTranslated(recordsFor(t), code);
@@ -360,6 +363,7 @@ export const appDocuments = {
           onSave: async (rv) => {
             await finish({ ...base, lang: rv.lang, langConf: rv.langSource === 'manual' ? 'high' : result.langConf, langSource: rv.langSource,
               read: { title: rv.title, items: rv.items, method: result.method, ocrLangs: result.ocrLangs, extraction: result.extraction, excerpt: result.text.slice(0, 1500) } });
+            moment('success');
             toast(`${rv.items.length} item${rv.items.length === 1 ? '' : 's'} saved from ${file.name}${rv.lang ? ` · ${langInfo(rv.lang).name}` : ''}.`);
             done();
           },

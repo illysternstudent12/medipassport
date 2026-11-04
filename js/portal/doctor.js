@@ -17,6 +17,7 @@ import { decodeToken, getShare, statusOf, logEvent, SECTIONS } from '../share/st
 import { isConfigured, openRemoteShare } from '../backend/supabase.js';
 import { aiOn, providerName, refreshServices } from '../translate/ai.js';
 import { ensureTranslated } from '../translate/state.js';
+import { moment, haptic } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const left = (ms) => {
@@ -181,6 +182,7 @@ export const doctorPortal = {
       if (code !== sh.code) { err.textContent = 'That code doesn’t match. Ask the patient to read it again.'; logEvent(sh.id, 'denied', 'Wrong access code'); return; }
       try { sessionStorage.setItem(SESSION, sh.id); } catch { /* ignore */ }
       logEvent(sh.id, 'opened', `Clinician signed in · ${langInfo(lang).name}`);
+      moment('success');
       openPortal();
     });
     host.addEventListener('click', (e) => {
@@ -199,7 +201,7 @@ export const doctorPortal = {
     timer = setInterval(() => {
       const cur = { ...sh, revokedAt: getShare(sh.id)?.revokedAt || null };
       const st = statusOf(cur);
-      if (st !== 'active') { clearInterval(timer); host.innerHTML = blocked(st, cur); return; }
+      if (st !== 'active') { clearInterval(timer); haptic('warn'); host.innerHTML = blocked(st, cur); host.querySelector('.pt-lock')?.classList.add('is-new'); return; }
       host.querySelectorAll('[data-left]').forEach((el) => { el.textContent = left(+el.dataset.left - Date.now()); });
     }, 1000);
     return () => clearInterval(timer);

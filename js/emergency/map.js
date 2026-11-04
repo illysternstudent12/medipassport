@@ -9,6 +9,7 @@ import {
   DEMO, fetchLive, loadSnapshot, rank, openStatus, navLinks, fmtDist, fmtMin, TYPE_LABEL, geocode,
 } from './facilities.js';
 import { openCallSheet, openInsuranceSheet } from './screen.js';
+import { illus, haptic } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const TYPE_IC = { er: 'siren', hospital: 'building', clinic: 'heart', doctor: 'user' };
@@ -158,7 +159,7 @@ export const mapScreen = {
       body.innerHTML = v.length
         ? `<ul class="flist">${v.slice(0, 60).map((x) => listItem(x, st.tz, false)).join('')}</ul>
            <p class="mp-attr">Facility data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</p>`
-        : `<div class="mp-empty">${icon('search')}<b>No matches nearby</b><p>Try another filter or search, or call ${esc(t.trip.emergency)} in an emergency.</p></div>`;
+        : `<div class="mp-empty">${illus('map')}<b>No matches nearby</b><p>Try another filter or search, or call ${esc(t.trip.emergency)} in an emergency.</p></div>`;
     };
 
     const markerIcon = (f, sel) => L.divIcon({
@@ -210,7 +211,7 @@ export const mapScreen = {
     }
 
     const showError = (msg, retry) => {
-      body.innerHTML = `<div class="mp-empty mp-empty--err">${icon('alert')}<b>${esc(msg)}</b>
+      body.innerHTML = `<div class="mp-empty mp-empty--err">${illus(navigator.onLine ? 'map' : 'offline')}<b>${esc(msg)}</b>
         <p>You can still call ${st.searched ? (st.place?.emergency ? esc(st.place.emergency) : 'the local emergency number') : esc(t.trip.emergency)} or contact your insurer.</p>
         <div class="mp-empty__btns"><button type="button" class="wbtn" data-retry>${icon('refresh')} Try again</button><button type="button" class="wbtn wbtn--line" data-ins>${icon('umbrella')} Contact insurance</button></div></div>`;
       body.querySelector('[data-retry]').onclick = retry;
@@ -254,7 +255,7 @@ export const mapScreen = {
     /* events */
     root.addEventListener('click', (e) => {
       const c = e.target.closest('[data-fid]');
-      if (c) { select(c.dataset.fid); return; }
+      if (c) { haptic('tap'); select(c.dataset.fid); return; }
       if (e.target.closest('[data-back]')) { if (isOpen('fdetail')) closeOverlay('fdetail'); else leaveDetail(); return; }
       if (e.target.closest('[data-call]')) {
         // A searched place may be in another country: use its number, or say we don't know it.

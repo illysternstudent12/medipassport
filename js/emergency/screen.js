@@ -8,6 +8,7 @@ import { criticalLines } from '../translate/records.js';
 import { langInfo } from '../translate/glossary.js';
 import { DEMO } from './facilities.js';
 import { addAssistRequest } from '../share/store.js';
+import { haptic, moment, speak, stopSpeaking, handover } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -69,7 +70,6 @@ export const emergencyScreen = {
       { n: 2, href: `#/app/doctor?lang=${t.trip.lang}`, ic: 'card', title: 'Show medical passport', sub: `Full record in ${lang.name} for the doctor`, cls: 'eact--cream' },
       { n: 3, href: '#/app/share?quick', ic: 'qr', title: 'Share medical QR', sub: 'Creates 1-hour access for the doctor now', cls: 'eact--cream' },
       { n: 4, btn: 'insurance', ic: 'umbrella', title: 'Contact insurance', sub: `${t.insurance.provider} · 24/7 assistance`, cls: 'eact--peach' },
-      { n: 5, btn: 'call', ic: 'phone', title: `Call emergency services · ${t.trip.emergency}`, sub: `${t.trip.country}: ambulance, police, fire`, cls: 'eact--alert' },
     ];
     return `<div class="em">
       <header class="em-bar">
@@ -79,6 +79,11 @@ export const emergencyScreen = {
       </header>
       <main class="em-main">
         <h1 class="em-title">I need<br/>medical help</h1>
+        <button type="button" class="em-call" data-eact="call" aria-label="Call emergency services, ${esc(t.trip.emergency)}, ${esc(t.trip.country)}">
+          <span class="em-call__k">${icon('phone')} ${esc(t.trip.country)} · ambulance, police, fire</span>
+          <b class="em-call__n">${esc(t.trip.emergency)}</b>
+          <span class="em-call__s">Tap for what to say · calls are disabled in this demo</span>
+        </button>
         ${demo?.scenario ? `<p class="em-scenario"><span>Demo scenario</span>${esc(demo.scenario)}</p>` : ''}
         <ol class="eacts">
           ${actions.map((a) => {
@@ -94,6 +99,7 @@ export const emergencyScreen = {
             <div><dt>${crit.labels.blood}</dt><dd><bdi>${esc(crit.blood)}</bdi></dd></div>
           </dl>
           <p class="em-crit__v">${crit.labels.verify}</p>
+          <button type="button" class="em-say" data-say lang="en" dir="ltr">${icon('play')}<span>Play in ${esc(lang.name)}</span><small>Uses this phone’s own voice · works offline on most phones</small></button>
         </section>
         <p class="app-note">Fictional traveler · demo scenario · calls are disabled</p>
       </main>
@@ -103,7 +109,18 @@ export const emergencyScreen = {
     const t = currentTraveler();
     const onClick = (e) => {
       const b = e.target.closest('[data-eact]');
+      if (b) haptic(b.dataset.eact === 'call' ? 'alert' : 'tap');
       if (b?.dataset.eact === 'call') openCallSheet(t);
+      const say = e.target.closest('[data-say]');
+      if (say) {
+        const text = handover(criticalLines(t, t.trip.lang), t.trip.lang);
+        say.classList.add('is-busy');
+        speak(text, t.trip.lang).then((r) => {
+          say.classList.remove('is-busy');
+          if (r === 'no-voice') toast(`This device has no ${langInfo(t.trip.lang).name} voice. Show the card instead.`);
+          if (r === 'unsupported') toast('Speech isn’t available in this browser. Show the card instead.');
+        });
+      }
       if (b?.dataset.eact === 'insurance') openInsuranceSheet(t);
       const d = e.target.closest('[data-demo]');
       if (d) toast(d.dataset.demo);
@@ -114,9 +131,10 @@ export const emergencyScreen = {
         n.disabled = true;
         n.querySelector('small').textContent = 'Sent. Your insurer can see your location and policy, not your records.';
         toast(`${t.insurance.provider} notified (demo). Visible in the insurer console.`);
+        moment('share');
       }
     };
     document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    return () => { stopSpeaking(); document.removeEventListener('click', onClick); };
   },
 };

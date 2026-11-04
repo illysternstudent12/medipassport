@@ -14,6 +14,7 @@ import { patientLang as patientLangOf, doctorLang as doctorLangOf, setDoctorLang
 import { openLanguagePicker } from '../translate/picker.js';
 import { aiOn, summaryOn, providerName, summarize } from '../translate/ai.js';
 import { recordsFor, factsForAi } from './documents.js';
+import { speak, stopSpeaking, handover, morph } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -37,6 +38,7 @@ function body(t, lang, patientLang, narrative) {
     <section class="dv-alert" lang="${lang}" dir="${info.rtl ? 'rtl' : 'ltr'}">
       <span class="dv-alert__ic">${icon('alert')}</span>
       <div><h2>${crit.labels.allergies}</h2><p>${crit.allergies.length ? crit.allergies.join(' · ') : esc(term('none_recorded', lang) || 'None recorded')}</p></div>
+      <button type="button" class="dv-say" data-say="${lang}" lang="en" dir="ltr" aria-label="Read allergies, diagnoses and blood type aloud in ${esc(info.name)}">${icon('play')}<span>Play in ${esc(info.name)}</span></button>
     </section>
 
     <p class="dv-verify" lang="${lang}" dir="${info.rtl ? 'rtl' : 'ltr'}">${icon('eye')}<span>${crit.labels.verify}${showEn ? `<small lang="en" dir="ltr">Medical translations require professional verification. ${eng === 'ai' ? `Machine-translated by ${esc(providerName())} where the glossary has no term.` : 'Translated from a reviewed medical glossary; no AI or translation service was used.'}</small>` : ''}</span></p>
@@ -103,6 +105,7 @@ export const appDoctor = {
       paintBar();
       bodyEl.innerHTML = body(t, cur(), patientLang, aiOn() ? narrative : null);
       bodyEl.classList.remove('is-swap'); void bodyEl.offsetWidth; bodyEl.classList.add('is-swap');
+      morph(bodyEl);
     };
     const setStatus = (html, cls = '') => { status.hidden = !html; status.className = `dv-status ${cls}`; status.innerHTML = html || ''; };
 
@@ -125,6 +128,15 @@ export const appDoctor = {
     };
 
     root.addEventListener('click', (e) => {
+      const say = e.target.closest('[data-say]');
+      if (say) {
+        const l = say.dataset.say;
+        speak(handover(criticalLines(t, l), l), l).then((r) => {
+          if (r === 'no-voice') toast(`This device has no ${langInfo(l).name} voice. Show the screen instead.`);
+          if (r === 'unsupported') toast('Speech isn’t available in this browser.');
+        });
+        return;
+      }
       const v = e.target.closest('[data-view]');
       if (v && v.dataset.view !== viewing) { viewing = v.dataset.view; fill(); return; }
       if (e.target.closest('[data-dvpick]')) {
@@ -152,6 +164,6 @@ export const appDoctor = {
     document.addEventListener('keydown', onKey);
 
     fill();
-    return () => { alive = false; document.removeEventListener('keydown', onKey); };
+    return () => { alive = false; stopSpeaking(); document.removeEventListener('keydown', onKey); };
   },
 };

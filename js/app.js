@@ -15,7 +15,9 @@ import { appShare } from './app/share.js';
 import { doctorPortal } from './portal/doctor.js';
 import { insurerConsole } from './portal/insurer.js';
 import { appSetup } from './app/setup.js';
-import { tourPage, initTour } from './tour.js';
+import { tourPage, initTour, demoCompletePage } from './tour.js';
+import { presentPage } from './present.js';
+import { illus, inFrame } from './fx.js';
 import { refreshServices, services } from './translate/ai.js';
 
 renderHeader(document.getElementById('site-header'));
@@ -40,6 +42,8 @@ createRouter({
     '/app/share': appShare,
     '/app/setup': appSetup,
     '/tour': tourPage,
+    '/present': presentPage,
+    '/demo-complete': demoCompletePage,
     '/portal': doctorPortal,
     '/insurer': insurerConsole,
   },
@@ -49,10 +53,25 @@ createRouter({
     const isApp = path === '/demo' || path.startsWith('/app') || path === '/portal' || path === '/insurer';
     document.body.classList.toggle('is-app', isApp);
     document.body.classList.toggle('is-onboarding', path === '/get-started');
+    document.body.classList.toggle('is-stage', path === '/present');
+    document.body.classList.toggle('is-framed', inFrame());
   },
 }).start();
 
 initTour();
+
+/* ---------------------------------------------------------------- home-screen app + offline */
+// The service worker keeps the app, the passport, the emergency screen and the
+// sample data usable without a connection. Live services (maps, search) need one.
+if ('serviceWorker' in navigator && !/^(127\.|localhost)/.test(location.hostname) && !inFrame()) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ }));
+}
+const offlineBar = document.createElement('div');
+offlineBar.className = 'offbar';
+offlineBar.setAttribute('role', 'status');
+offlineBar.innerHTML = `${illus('offline', 'offbar__art')}<span><b>You’re offline.</b> Your passport, records and emergency screen still work. Maps and search need a connection.</span>`;
+const syncOnline = () => { offlineBar.classList.toggle('is-on', !navigator.onLine); if (!offlineBar.isConnected) document.body.appendChild(offlineBar); };
+addEventListener('online', syncOnline); addEventListener('offline', syncOnline); syncOnline();
 
 // Ask the backend (if one is configured) which services are live, once per
 // session. If the answer changes what screens can do, re-render the current one.

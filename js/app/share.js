@@ -17,6 +17,7 @@ import { qrSvg } from '../share/qr.js';
 import { remember, recall } from '../nav.js';
 import { isConfigured, currentUser, saveProfile, createRemoteShare, revokeRemoteShare, remoteShareEvents } from '../backend/supabase.js';
 import { refreshServices, shareOn } from '../translate/ai.js';
+import { moment, illus } from '../fx.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const left = (ms) => {
@@ -109,8 +110,8 @@ function resultCard(sh) {
       ${s === 'active' ? `<button type="button" class="wbtn sres__revoke" data-revoke="${sh.id}">${icon('close')} Revoke now</button>` : ''}
     </div>
     ${sh.remote
-    ? `<p class="sres__demo sres__demo--live">${icon('shield')} Server-verified: the link holds only a random token. The code is checked by the MediPassport backend, which enforces expiry and revocation on every device and logs every attempt. Five wrong codes lock the link for 15 minutes. Clinician identity is not verified (no licence registry is connected).</p>`
-    : `<p class="sres__demo">${icon('sparkle')} Demo link: the access code and the share’s scope travel inside the link. Expiry is enforced anywhere; revocation and activity are tracked in this browser only. Sign in under <a href="#/app/setup">Connected services</a> for server-verified, revocable shares.</p>`}
+    ? `<p class="sres__demo sres__demo--live">${icon('shield')} <span>Server-verified: the link holds only a random token. The code is checked by the MediPassport backend, which enforces expiry and revocation on every device and logs every attempt. Five wrong codes lock the link for 15 minutes. Clinician identity is not verified (no licence registry is connected).</span></p>`
+    : `<p class="sres__demo">${icon('sparkle')} <span>Demo link: the access code and the share’s scope travel inside the link. Expiry is enforced anywhere; revocation and activity are tracked in this browser only.<span class="dev-only"> Sign in under <a href="#/app/setup">Connected services</a> for server-verified, revocable shares.</span></span></p>`}
   </section>`;
 }
 
@@ -168,7 +169,7 @@ export const appShare = {
     const renderBuilder = () => { buildSlot.innerHTML = builder(t, recs, st); requestAnimationFrame(thumb); saveDraft(); };
     const renderList = () => {
       const shares = sharesFor(t.id);
-      list.innerHTML = shares.length ? shares.map(shareRow).join('') : '<li class="slist__empty">No shares yet. Create one to give a doctor or your insurer temporary access.</li>';
+      list.innerHTML = shares.length ? shares.map(shareRow).join('') : `<li class="slist__empty">${illus('share')}<b>No shares yet</b><span>Create one to give a doctor or your insurer temporary access.</span></li>`;
       root.querySelector('[data-count]').textContent = `${shares.filter((s) => statusOf(s) === 'active').length} active`;
     };
     const renderResult = async () => {
@@ -200,6 +201,7 @@ export const appShare = {
           .then((sh) => {
             st.shown = sh.id;
             renderResult(); renderList();
+            moment('share');
             toast(st.recipient === 'insurer' ? 'Documents authorized for this claim only.' : sh.remote ? 'Server-verified access created.' : 'Demo access created.');
             resSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
           })
@@ -214,7 +216,7 @@ export const appShare = {
         const sh = getShare(rv.dataset.revoke);
         rv.disabled = true;
         (sh?.remote ? revokeRemoteShare(sh.remote.id) : Promise.resolve())
-          .then(() => { revokeShare(rv.dataset.revoke); renderResult(); renderList(); toast(sh?.remote ? 'Access revoked on the server. The link stops working everywhere.' : 'Access revoked.'); })
+          .then(() => { revokeShare(rv.dataset.revoke); renderResult(); renderList(); moment('revoke'); toast(sh?.remote ? 'Access revoked on the server. The link stops working everywhere.' : 'Access revoked.'); })
           .catch((err) => { rv.disabled = false; toast(`Couldn’t revoke on the server: ${err.message}. Try again.`); });
         return;
       }

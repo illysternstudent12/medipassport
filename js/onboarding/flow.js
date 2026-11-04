@@ -8,6 +8,7 @@ import { toast } from '../app/ui.js';
 import { PassportCard } from '../app/home.js';
 import { detectFileLanguage } from '../translate/detect.js';
 import { processDocument } from '../docs/process.js';
+import { moment } from '../fx.js';
 import { backButton, onSameScreenPop, patchState, remember, recall, forget } from '../nav.js';
 import { langInfo } from '../translate/glossary.js';
 import {
@@ -561,8 +562,26 @@ export const onboardingPage = {
         blood: ex.blood,
         permissions: s.perms,
         activatedAt: new Date().toISOString(),
+        // Which sample documents were uploaded here (Documents shows them as "uploaded at sign-up").
+        signupDocs: s.files.filter((f) => f.kind && f.status === 'done').map((f) => ({ kind: f.kind, name: f.name })),
       });
+      // The traveler's own files that were read here become Documents uploads (items as reviewed).
+      const own = s.files.filter((f) => f.status === 'read' || f.status === 'stored' || f.status === 'failed');
+      if (own.length) {
+        const key = `mp.uploads.${p}`;
+        let list = [];
+        try { list = JSON.parse(localStorage.getItem(key)) || []; } catch { /* ignore */ }
+        const added = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+        own.forEach((f) => list.push({
+          id: `ob${f.id}${Date.now().toString(36)}`, name: f.name, size: f.size, source: 'Sign-up', added,
+          lang: f.lang || null, langSource: f.lang ? 'detected' : 'unknown', langConf: f.langConf || 'medium',
+          ...(f.status === 'read' ? { read: { title: f.name.replace(/\.[a-z0-9]+$/i, ''), items: f.items.map(({ kind, code, name, detail }) => ({ kind, code, name, detail })), method: f.method, extraction: 'glossary' } } : {}),
+          ...(f.status === 'failed' ? { error: f.error } : {}),
+        }));
+        try { localStorage.setItem(key, JSON.stringify(list)); } catch { /* ignore */ }
+      }
       setTraveler(p);
+      moment('success');
     }
 
     /* --- events --- */
