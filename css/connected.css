@@ -298,3 +298,44 @@
   .ichart__tick { font-size: 19px; }
   .ichart__val { font-size: 20px; }
 }
+
+/* ================================================================ Mobile usability (Batch 6.6) — loaded last so it wins over earlier sheets */
+/* Grids never push content past the screen edge */
+.dv-main > *, .ob__grid > *, .ob__main, .ob__step > * { min-width: 0; }
+@media (max-width: 959px) {
+  .dv-main, .ob__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Readability floor: no text below ~11.5px */
+.wtile .label, .wpass .label, .ptile .label, .ins__grid dt, .dest__chips small, .pcard__fields span,
+.wallet-btn small, .em-scenario span, .dv-switch small, .dv-hero__blood small, .scard__blood small,
+.rbadge, .rcard__patient span, .fact__dl dt, .fact__key, .dv-foot small, .wmrz, .lrow__tag,
+.dcard__langs i, .fstat, .mk__melabel, .apass small, .policy__grid dt, .fdet__times small,
+.app__label, .tswitch--compact .tswitch__txt small, .ic-table th {
+  font-size: max(11.5px, 0.72rem);
+}
+
+/* Touch targets: at least 40–44px */
+.sec-head__link { min-height: 40px; padding: 0 0.6rem; margin-right: -0.6rem; border-radius: var(--r-pill); }
+.pfoot .link { min-height: 44px; }
+.lview__change { height: 40px; }
+.fdet__back { height: 40px; }
+.dsheet__trhead .segmented button, .lview__mode button { height: 40px; }
+.mp-map.leaflet-container .leaflet-bar a { width: 44px !important; height: 44px !important; line-height: 44px !important; font-size: 20px !important; }
+.ic-bar__nav button { height: 44px !important; }
+.ic-bar__out { height: 44px !important; }
+.ic-tbtn { height: 40px !important; }
+/* Record cards on narrow screens: the provenance badge wraps under the title instead of widening the card */
+.dv-grid { grid-template-columns: minmax(0, 1fr); }
+.dv-rec, .dv-rec__card, .pt-rec, .lview__card { min-width: 0; }
+.rcard__head { flex-wrap: wrap; }
+.rcard__titles { min-width: min(100%, 12rem); }
+@media (min-width: 960px) { .dv-grid { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); } }
+/* Slide-in transitions must never create momentary sideways scrolling */
+#main, .ob, .pt, .dv { overflow-x: clip; }
+.em-bar__where { justify-content: flex-start; }
+/* Doctor view patient card on phones: name gets the full width, blood type on its own row */
+@media (max-width: 599px) {
+  .dv-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .dv-hero__blood { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; justify-items: initial; }
+}

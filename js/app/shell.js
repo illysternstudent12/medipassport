@@ -5,6 +5,7 @@ import { icon } from '../icons.js';
 import { BrandMark } from '../components.js';
 import { TRAVELERS, currentTraveler, setTraveler, localTime } from './data.js';
 import { openSheet, closeSheet, toast, DESKTOP_MQ } from './ui.js';
+import { backButton } from '../nav.js';
 
 export { openSheet, closeSheet, toast };
 
@@ -165,9 +166,10 @@ function BottomNav(active) {
 }
 
 /** Page top bar. Mobile: avatar + small title + location. Desktop: large title + live context. */
-export function AppTop(t, { title, desk } = {}) {
-  return `<header class="atop">
-    <a class="atop__me" href="${APP_ROUTES.profile}" aria-label="Profile: ${t.first} ${t.last}">${Portrait(t)}</a>
+export function AppTop(t, { title, desk, back } = {}) {
+  // Main tabs show the avatar; secondary screens show Back (real history, with a fallback).
+  return `<header class="atop ${back ? 'atop--sub' : ''}">
+    ${back ? backButton(back) : `<a class="atop__me" href="${APP_ROUTES.profile}" aria-label="Profile: ${t.first} ${t.last}">${Portrait(t)}</a>`}
     ${title ? `<h1 class="atop__title">${title}</h1>` : ''}
     <h1 class="atop__desk" aria-hidden="${title ? 'true' : 'false'}">${desk || title || 'Today'}</h1>
     <span class="atop__ctx">

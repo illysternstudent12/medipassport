@@ -2,6 +2,7 @@
 // Map-first: Leaflet + OpenStreetMap tiles (tinted to the palette), facilities from OpenStreetMap.
 // Mobile: expandable bottom sheet (peek / half / full). Desktop: floating panel.
 import { icon } from '../icons.js';
+import { backButton, pushOverlay, closeOverlay, isOpen, navDirection, remember, recall } from '../nav.js';
 import { currentTraveler } from '../app/data.js';
 import { toast, isDesktop } from '../app/ui.js';
 import {
@@ -96,7 +97,7 @@ export const mapScreen = {
     return `<div class="mp" data-mp>
       <div class="mp-map" data-map role="application" aria-label="Map of nearby medical facilities"></div>
       <header class="mp-top">
-        <a class="mp-iconbtn" href="#/app/emergency" aria-label="Back to emergency actions">${icon('arrow', 'style="rotate:180deg"')}</a>
+        ${backButton('#/app/emergency', 'Back', 'navback--float')}
         <label class="mp-search">${icon('search')}<input type="search" placeholder="Search hospitals, clinics, specialities" aria-label="Search nearby facilities" data-q/></label>
         <button type="button" class="mp-iconbtn" data-locate aria-label="Use my location">${icon('pin')}</button>
       </header>
@@ -181,8 +182,13 @@ export const mapScreen = {
     };
     const refresh = () => { renderList(); renderMarkers(); updateSrc(); };
 
+    const save = () => remember(`map.${t.id}`, { filter: st.filter, q: st.q, selected: st.selected });
+    const leaveDetail = () => { st.selected = null; save(); renderList(); renderMarkers(); };
     function select(id, fly = true) {
       st.selected = id;
+      save();
+      // Details are a history step: Back (button, gesture or system) returns to the list.
+      if (!isOpen('fdetail')) pushOverlay('fdetail', leaveDetail);
       const f = st.ranked.find((x) => x.id === id);
       renderList(); renderMarkers();
       if (f && map) {
@@ -228,6 +234,8 @@ export const mapScreen = {
         st.all = res.facilities; st.source = res.source; st.at = res.at;
         st.ranked = rank(st.all, st.me);
         renderMe(); refresh();
+        // Coming back to the map: reopen the facility the user was looking at.
+        if (restoreSel && st.ranked.some((x) => x.id === restoreSel)) { const id = restoreSel; restoreSel = null; select(id, false); }
         if (label !== 'Map area') fit();
       } catch (err) {
         if (!alive) return;
@@ -239,14 +247,15 @@ export const mapScreen = {
     root.addEventListener('click', (e) => {
       const c = e.target.closest('[data-fid]');
       if (c) { select(c.dataset.fid); return; }
-      if (e.target.closest('[data-back]')) { st.selected = null; renderList(); renderMarkers(); return; }
+      if (e.target.closest('[data-back]')) { if (isOpen('fdetail')) closeOverlay('fdetail'); else leaveDetail(); return; }
       if (e.target.closest('[data-call]')) { openCallSheet(t); return; }
       if (e.target.closest('[data-ins]')) { openInsuranceSheet(t); return; }
       if (e.target.closest('[data-demo-call]')) { toast('Demo: calls are disabled. Use “Use my location” for real calling.'); return; }
       if (e.target.closest('[data-recenter]')) { map?.flyTo([st.me.lat, st.me.lng], 15, { duration: 0.6 }); return; }
       const f = e.target.closest('[data-f]');
       if (f) {
-        st.filter = f.dataset.f; st.selected = null;
+        st.filter = f.dataset.f; st.selected = null; save();
+        if (isOpen('fdetail')) closeOverlay('fdetail');
         root.querySelectorAll('[data-f]').forEach((b) => b.setAttribute('aria-pressed', String(b === f)));
         refresh(); return;
       }
@@ -266,7 +275,10 @@ export const mapScreen = {
         load({ lat: c2.lat, lng: c2.lng }, { live: st.live, label: 'Map area', me: st.me });
       }
     });
-    root.querySelector('[data-q]').addEventListener('input', (e) => { st.q = e.target.value.trim().toLowerCase(); st.selected = null; refresh(); });
+    root.querySelector('[data-q]').addEventListener('input', (e) => {
+      st.q = e.target.value.trim().toLowerCase(); st.selected = null; save(); refresh();
+      if (isOpen('fdetail')) closeOverlay('fdetail');
+    });
 
     /* bottom sheet drag (mobile) */
     const grab = root.querySelector('[data-grab]');
@@ -302,6 +314,14 @@ export const mapScreen = {
       });
     }).catch((err) => { root.querySelector('[data-map]').innerHTML = `<p class="mp-maperr">${icon('alert')} ${esc(err.message)}</p>`; });
 
+    // Restore filters/search (always) and the open facility (when returning with Back).
+    const saved = recall(`map.${t.id}`) || {};
+    let restoreSel = ['back', 'refresh', 'reload'].includes(navDirection()) ? saved.selected : null;
+    if (saved.filter) {
+      st.filter = saved.filter;
+      root.querySelectorAll('[data-f]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.f === st.filter)));
+    }
+    if (saved.q) { st.q = saved.q; root.querySelector('[data-q]').value = saved.q; }
     load(st.from, { live: false, label: demo.label, snapshot: true });
     return () => { alive = false; map?.remove(); };
   },

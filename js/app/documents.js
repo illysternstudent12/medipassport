@@ -12,6 +12,7 @@ import { langInfo, term } from '../translate/glossary.js';
 import { buildRecords, recordCard, summaryCard, fmtDate, KIND_ICON, currentFacts, setDocLang } from '../translate/records.js';
 import { patientLang, setPatientLang, doctorLang, ensureTranslated, engineFor } from '../translate/state.js';
 import { detectFileLanguage } from '../translate/detect.js';
+import { remember, recall } from '../nav.js';
 import { openLanguagePicker, openAiSettings } from '../translate/picker.js';
 import { aiOn, extractDocument, summarize } from '../translate/ai.js';
 
@@ -278,7 +279,7 @@ export const appDocuments = {
       if (b) {
         const r = find(b.dataset.rec);
         if (!r) return;
-        selected = r.id;
+        selected = r.id; saveView();
         if (isDesktop()) {
           list.querySelectorAll('[data-rec]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
           pane.innerHTML = layeredViewer(t, r, lang, mode, { canChange: true }); bindViewer(pane);
@@ -287,13 +288,14 @@ export const appDocuments = {
         }
       }
       const m = e.target.closest('[data-lmode] [data-m]');
-      if (m) mode = m.dataset.m;
+      if (m) { mode = m.dataset.m; saveView(); }
     });
 
     /* filter + search */
     const filter = root.querySelector('[data-filter]');
     const search = root.querySelector('[data-search-input]');
     let fType = 'all', fq = '';
+    const saveView = () => remember(`docs.${t.id}`, { fType, fq, selected, mode });
     function applyFilter() {
       let shown = 0;
       list.querySelectorAll(':scope > li').forEach((li) => {
@@ -305,11 +307,11 @@ export const appDocuments = {
     filter.addEventListener('click', (e) => {
       const b = e.target.closest('[data-f]');
       if (!b) return;
-      fType = b.dataset.f;
+      fType = b.dataset.f; saveView();
       filter.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
       applyFilter();
     });
-    search.addEventListener('input', () => { fq = search.value.trim().toLowerCase(); applyFilter(); });
+    search.addEventListener('input', () => { fq = search.value.trim().toLowerCase(); saveView(); applyFilter(); });
 
     /* uploads */
     const addFiles = async (files, source) => {
@@ -369,6 +371,12 @@ export const appDocuments = {
     };
     document.addEventListener('click', onRemove);
 
+    // Restore filter, search, open document and view mode from earlier in the session.
+    const vs = recall(`docs.${t.id}`) || {};
+    if (vs.fType) { fType = vs.fType; filter.querySelectorAll('[data-f]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.f === fType))); }
+    if (vs.fq) { fq = vs.fq; search.value = vs.fq; }
+    if (vs.mode) mode = vs.mode;
+    if (isDesktop() && vs.selected && find(vs.selected)) selected = vs.selected;
     paint();
     if (aiOn()) switchTo(lang);
     if (/[?&]lang=/.test(location.hash)) toast(`Showing your records in ${langInfo(lang).name}.`);

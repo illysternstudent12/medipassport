@@ -1,10 +1,11 @@
 // Secondary routes. Fully styled and navigable; the real onboarding, demo
 // walkthrough and partner flows arrive in later batches.
 import { icon } from '../icons.js';
+import { backButton } from '../nav.js';
 import { Button, Tag, SplitHeading, ROUTES } from '../components.js';
 import { observeReveals } from '../interactions.js';
 
-const back = `<a class="stub__back link" href="${ROUTES.home}">${icon('arrow', 'style="rotate:180deg"')} Back to home</a>`;
+const back = `<div class="stub__back">${backButton('#/')}</div>`;
 
 const mountReveals = (root) => {
   const off = observeReveals(root);
@@ -43,7 +44,7 @@ export const notFoundPage = {
     <div class="container">
       <p class="stub__404" aria-hidden="true">4<span class="serif">0</span>4</p>
       <h1 class="h3">This page took a different flight.</h1>
-      <div class="hero__ctas" style="justify-content:center;margin-top:1.5rem">${Button({ label: 'Back to home', href: ROUTES.home })}</div>
+      <div class="hero__ctas" style="justify-content:center;margin-top:1.5rem">${backButton('#/')}${Button({ label: 'Home', href: ROUTES.home })}</div>
     </div>
   </section>`,
 };

@@ -402,3 +402,25 @@
   .site-footer__grid { grid-template-columns: 1.2fr 2fr; }
   .site-footer__cols { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ================================================================ Back button (Batch 6.6) */
+.navback {
+  display: inline-flex; align-items: center; gap: 0.3rem; flex: none;
+  min-width: 44px; height: 44px; padding: 0 0.95rem 0 0.6rem;
+  border-radius: var(--r-pill);
+  background: var(--white); color: var(--black);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-sm);
+  font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em;
+  transition: transform var(--dur-1) var(--ease-out), background var(--dur-1);
+}
+.navback svg { width: 20px; height: 20px; }
+.navback:active { transform: scale(0.96); }
+.navback:hover { background: var(--cream-2); }
+.navback--float { height: 50px; border-radius: 16px; box-shadow: var(--shadow-md); }
+.navback--icon { padding: 0; justify-content: center; width: 44px; }
+.navback--icon span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.atop--sub .atop__title { font-size: 1.15rem; }
+.stub__back { margin-bottom: clamp(1.5rem, 4vw, 3rem); }
+.em-bar__exit { display: inline-flex; align-items: center; gap: 0.35rem; height: 44px; padding: 0 0.95rem; border-radius: var(--r-pill); background: var(--black); color: var(--cream); font-weight: 700; font-size: 0.92rem; flex: none; }
+.em-bar__exit svg { width: 17px; height: 17px; }
+.em-bar__where { flex: 1; min-width: 0; justify-content: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

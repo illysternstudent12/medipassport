@@ -179,6 +179,17 @@ No language is treated as "the original". Four settings are independent per trav
 - **New samples (same facts, issued abroad):** `kenji-medikationsplan-de.pdf` (German medication plan, Berlin) and `amara-resume-medical-fr.pdf` (French medical summary, Paris). Uploaded samples can be shared and open in the doctor portal on any device.
 - **Tested:** German → Japanese (Kenji, patient and doctor portal), Hebrew → Spanish (Maya, patient and doctor), English → Arabic (Amara, patient and doctor, RTL), French → English (Amara, patient).
 
+## Mobile navigation (Batch 6.6)
+
+`js/nav.js` makes every screen, sheet, map detail and onboarding step a real browser-history entry, so the in-app **Back** button, Android's system Back, swipe-back gestures and the browser's Back all behave the same.
+
+- **Back goes to the actual previous screen** (`history.back()`); only when there's nothing behind you (a deep link or new tab) does it fall back to a sensible parent screen.
+- **Overlays:** Back closes an open sheet, picker or dialog, or a facility's details on the map, instead of leaving the screen. Following a link from inside a sheet first removes the sheet's history step, so there are no dead Back presses.
+- **State is kept** for the session: onboarding answers, insurer, uploads and review edits (it resumes where you left off); the half-built share; Documents filter, search, open document and view mode; map filter, search and open facility. Scroll position is restored when you go back.
+- **Swipe:** browsers already map edge swipes to Back. When MediPassport runs as a home-screen app, an edge swipe from the left is added.
+- **Headers:** main tabs (Home, Passport, Documents, Profile) show the avatar; every secondary screen shows Back. The emergency screen also has **Exit** (to Home); shares and insurer notifications are kept.
+- **Usability pass at 360px:** no sideways scrolling (including during transitions), touch targets of at least 40–44px, and no text below about 11.5px.
+
 ## Notes
 
 - Facility data on the map is real (© OpenStreetMap contributors, ODbL). Travelers, insurers, IDs, clinic names, medical record and QR code are sample/illustrative data. The QR is decorative, not scannable.

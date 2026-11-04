@@ -3,6 +3,7 @@
 // language; one tap flips to the patient's language. Each source document can
 // be flipped back to its original.
 import { icon } from '../icons.js';
+import { backButton } from '../nav.js';
 import { BrandMark } from '../components.js';
 import { currentTraveler } from './data.js';
 import { Portrait } from './shell.js';
@@ -68,7 +69,7 @@ export const appDoctor = {
     if (q) setDoctorLang(t, q);
     return `<div class="dv" data-dv>
       <header class="dv-bar">
-        <a class="dv-bar__back" href="#/app/documents" aria-label="Back to documents">${icon('arrow', 'style="rotate:180deg"')}</a>
+        ${backButton('#/app/documents')}
         <span class="dv-bar__brand">${BrandMark()}<span>Doctor view</span></span>
         <div class="dv-bar__langs" data-dvlangs></div>
       </header>

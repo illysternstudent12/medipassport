@@ -872,3 +872,10 @@ body.is-app #main { animation: none; }
   }
   .app-view--home .wrail { grid-template-columns: 1fr 1fr; }
 }
+
+/* Batch 6.6: screen transitions follow navigation direction; in-place refreshes don't animate */
+#main[data-nav="refresh"] .app-view { animation: none; }
+@media (max-width: 959px) {
+  #main[data-nav="forward"] .app-view { animation: route-fwd 420ms var(--ease-out); }
+  #main[data-nav="back"] .app-view { animation: route-back 420ms var(--ease-out); }
+}

@@ -14,6 +14,7 @@ import {
   DURATIONS, SECTIONS, createShare, revokeShare, sharesFor, getShare, statusOf, shareUrl, eventsFor,
 } from '../share/store.js';
 import { qrSvg } from '../share/qr.js';
+import { remember, recall } from '../nav.js';
 
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const left = (ms) => {
@@ -113,7 +114,7 @@ export const appShare = {
   html() {
     const t = currentTraveler();
     return appShell('passport', `
-      ${AppTop(t, { title: 'Sharing', desk: 'Secure sharing' })}
+      ${AppTop(t, { title: 'Sharing', desk: 'Secure sharing', back: '#/app/passport' })}
       <section class="shero">
         <h1 class="shero__h">Share on<br/><span class="serif">your terms.</span></h1>
         <p class="shero__sub">Choose who, what and for how long. Every share expires, and you can end it any time.</p>
@@ -151,7 +152,11 @@ export const appShare = {
       const th = seg?.querySelector('.segmented__thumb');
       if (a && th) { th.style.width = `${a.offsetWidth}px`; th.style.transform = `translateX(${a.offsetLeft}px)`; }
     };
-    const renderBuilder = () => { buildSlot.innerHTML = builder(t, recs, st); requestAnimationFrame(thumb); };
+    // Keep the half-built share if the patient leaves and comes back.
+    const saveDraft = () => remember(`share.${t.id}`, { recipient: st.recipient, docs: st.docs, sections: st.sections, lang: st.lang, duration: st.duration, claimRef: st.claimRef });
+    const draft = !quick && recall(`share.${t.id}`);
+    if (draft) Object.assign(st, draft, { docs: (draft.docs || []).filter((id) => recs.some((r) => r.id === id)) });
+    const renderBuilder = () => { buildSlot.innerHTML = builder(t, recs, st); requestAnimationFrame(thumb); saveDraft(); };
     const renderList = () => {
       const shares = sharesFor(t.id);
       list.innerHTML = shares.length ? shares.map(shareRow).join('') : '<li class="slist__empty">No shares yet. Create one to give a doctor or your insurer temporary access.</li>';
@@ -174,7 +179,7 @@ export const appShare = {
       const r = e.target.closest('[data-recipient]');
       if (r) { st.recipient = r.dataset.recipient; if (st.recipient === 'insurer') st.docs = []; else st.docs = recs.map((x) => x.id); renderBuilder(); return; }
       const d = e.target.closest('[data-d]');
-      if (d) { st.duration = d.dataset.d; root.querySelectorAll('[data-d]').forEach((b) => b.setAttribute('aria-pressed', String(b === d))); thumb(); return; }
+      if (d) { st.duration = d.dataset.d; root.querySelectorAll('[data-d]').forEach((b) => b.setAttribute('aria-pressed', String(b === d))); thumb(); saveDraft(); return; }
       if (e.target.closest('[data-lang]')) {
         openLanguagePicker({ current: st.lang, title: 'Doctor’s language', suggested: [t.trip.lang, 'en'], onPick: (c) => { st.lang = c; renderBuilder(); } });
         return;
@@ -202,11 +207,12 @@ export const appShare = {
         st.docs = doc.checked ? [...new Set([...st.docs, doc.dataset.doc])] : st.docs.filter((x) => x !== doc.dataset.doc);
         doc.closest('.sdoc').classList.toggle('is-on', doc.checked);
         root.querySelector('[data-create]').disabled = !st.docs.length;
+        saveDraft();
       }
       const sec = e.target.closest('[data-sec]');
-      if (sec) st.sections = sec.checked ? [...new Set([...st.sections, sec.dataset.sec])] : st.sections.filter((x) => x !== sec.dataset.sec);
+      if (sec) { st.sections = sec.checked ? [...new Set([...st.sections, sec.dataset.sec])] : st.sections.filter((x) => x !== sec.dataset.sec); saveDraft(); }
     });
-    root.addEventListener('input', (e) => { if (e.target.matches('[data-claim]')) st.claimRef = e.target.value.trim(); });
+    root.addEventListener('input', (e) => { if (e.target.matches('[data-claim]')) { st.claimRef = e.target.value.trim(); saveDraft(); } });
 
     // Live countdowns + refresh when another tab (the portal) logs activity
     const tick = setInterval(() => {

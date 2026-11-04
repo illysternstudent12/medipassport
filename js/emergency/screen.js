@@ -1,6 +1,7 @@
 // App · Emergency hub — "I need medical help"
 // Five large, high-contrast actions. Calm, no decorative motion.
 import { icon } from '../icons.js';
+import { backButton } from '../nav.js';
 import { currentTraveler, localTime } from '../app/data.js';
 import { openSheet, toast } from '../app/ui.js';
 import { criticalLines } from '../translate/records.js';
@@ -68,8 +69,9 @@ export const emergencyScreen = {
     ];
     return `<div class="em">
       <header class="em-bar">
-        <a class="em-bar__x" href="#/app" aria-label="Close and go back">${icon('close')}</a>
+        ${backButton('#/app')}
         <span class="em-bar__where">${icon('pin')} ${esc(demo?.label || t.trip.city)} · ${localTime(t)}</span>
+        <a class="em-bar__exit" href="#/app" data-exit>${icon('home')}<span>Exit</span></a>
       </header>
       <main class="em-main">
         <h1 class="em-title">I need<br/>medical help</h1>
@@ -101,6 +103,7 @@ export const emergencyScreen = {
       if (b?.dataset.eact === 'insurance') openInsuranceSheet(t);
       const d = e.target.closest('[data-demo]');
       if (d) toast(d.dataset.demo);
+      if (e.target.closest('[data-exit]')) toast('Left emergency mode. Your shares and insurer notifications are kept.');
       const n = e.target.closest('[data-notify-insurer]');
       if (n && !n.disabled) {
         addAssistRequest({ provider: t.insurance.provider, name: `${t.first} ${t.last}`, where: DEMO[t.id]?.label || t.trip.city, policy: t.insurance.policy });

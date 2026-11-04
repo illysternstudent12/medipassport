@@ -116,6 +116,13 @@ ul, ol { padding: 0; list-style: none; }
 
 .route-view { display: contents; }
 .route-enter { animation: route-in 600ms var(--ease-out); }
+/* Direction-aware screen transitions on phones: forward slides in from the right, back from the left. */
+@media (max-width: 959px) {
+  .route-enter[data-nav="forward"] { animation: route-fwd 420ms var(--ease-out); }
+  .route-enter[data-nav="back"] { animation: route-back 420ms var(--ease-out); }
+}
+@keyframes route-fwd { from { opacity: 0.4; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes route-back { from { opacity: 0.4; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @keyframes route-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -12px; } }

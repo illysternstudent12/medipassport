@@ -4,8 +4,10 @@ import { icon } from '../icons.js';
 import { BrandMark, QR } from '../components.js';
 import { TRAVELERS, LANG_LABEL, travelerById, saveOnboarding, setTraveler, clearOnboarding } from '../app/data.js';
 import { Portrait } from '../app/shell.js';
+import { toast } from '../app/ui.js';
 import { PassportCard } from '../app/home.js';
 import { detectFileLanguage } from '../translate/detect.js';
+import { backButton, onSameScreenPop, patchState, remember, recall, forget } from '../nav.js';
 import { langInfo } from '../translate/glossary.js';
 import {
   COUNTRIES, INSURERS, Flag, InsurerLogo, demoPolicy,
@@ -321,19 +323,35 @@ export const onboardingPage = {
   html: () => '<div class="ob-root" data-ob></div>',
   mount(root) {
     const host = root.querySelector('[data-ob]');
-    let s = freshState();
+    // Resume where the traveler left off this session (answers, insurer, uploads, review edits).
+    const saved = recall('onboarding');
+    let s = saved ? { ...freshState(), ...saved, edit: null } : freshState();
+    s.files = (s.files || []).filter((f) => f.status !== 'reading'); // interrupted uploads are dropped
+    const hs = history.state || {};
+    if (typeof hs.obstep === 'number') s.step = hs.obstep; // reload / back into a step
     let busy = false;
     let alive = true;
 
-    const go = (n) => { s.step = Math.max(0, Math.min(STEPS.length - 1, n)); s.edit = null; render(); host.scrollIntoView?.({ block: 'start' }); window.scrollTo(0, 0); };
+    // Each step is a history entry: Back (button, Android, swipe, browser) goes to the previous step.
+    const go = (n, { fromHistory = false } = {}) => {
+      s.step = Math.max(0, Math.min(STEPS.length - 1, n));
+      s.edit = null;
+      if (!fromHistory) history.pushState({ ...(history.state || {}), overlay: undefined, obstep: s.step }, '');
+      render();
+      host.scrollIntoView?.({ block: 'start' });
+      window.scrollTo(0, 0);
+    };
+    patchState({ obstep: s.step });
+    const offPop = onSameScreenPop((st) => { if (alive && typeof st.obstep === 'number' && st.obstep !== s.step) go(st.obstep, { fromHistory: true }); });
 
     function render() {
+      if (STEPS[s.step].key !== 'done') remember('onboarding', { ...s, edit: null });
       const st = STEPS[s.step];
       const prog = STEPS.slice(1, -1);
       host.innerHTML = `
         <div class="ob ob--${st.tone}" data-step-key="${st.key}">
           <header class="ob__bar">
-            ${s.step > 0 && st.key !== 'done' ? `<button type="button" class="ob__icon" data-back aria-label="Back">${icon('arrow', 'style="rotate:180deg"')}</button>` : `<a class="ob__brand" href="#/" aria-label="MediPassport home">${BrandMark()}</a>`}
+            ${s.step > 0 && st.key !== 'done' ? `<button type="button" class="ob__icon" data-back aria-label="Back to the previous step">${icon('arrow', 'style="rotate:180deg"')}</button>` : st.key === 'done' ? `<a class="ob__brand" href="#/" aria-label="MediPassport home">${BrandMark()}</a>` : backButton('#/', 'Back', 'navback--icon')}
             <ol class="ob__prog" aria-label="Progress">
               ${prog.map((p, i) => `<li class="${i + 1 < s.step ? 'is-done' : i + 1 === s.step ? 'is-now' : ''}"><span class="sr-only">${p.kicker}${i + 1 === s.step ? ' (current step)' : ''}</span></li>`).join('')}
             </ol>
@@ -531,18 +549,19 @@ export const onboardingPage = {
         // Going back to before "connect" resets the connection; before upload resets extraction
         const target = key === 'connect' && s.connected ? s.step : s.step - 1;
         if (key === 'connect' && s.connected) { s.connected = false; render(); return; }
+        if (s.step > 0 && (history.state?.obstep ?? 0) > 0) { history.back(); return; }
         go(target);
         return;
       }
       if (el.matches('[data-next]')) {
         if (key === 'connect' && !s.connected) { runConnect(); return; }
         if (key === 'upload' && !s.files.some((f) => f.status === 'done')) { s.extracted = buildExtraction(); go(s.step + 2); return; }
-        if (key === 'permissions') { activate(); go(s.step + 1); return; }
+        if (key === 'permissions') { activate(); forget('onboarding'); go(s.step + 1); return; }
         if (key === 'done') { location.hash = '#/app'; return; }
         go(s.step + 1);
         return;
       }
-      if (el.matches('[data-restart]')) { clearOnboarding(); s = freshState(); render(); return; }
+      if (el.matches('[data-restart]')) { clearOnboarding(); forget('onboarding'); s = freshState(); go(0); return; }
 
       if (el.dataset.country) {
         if (s.country !== el.dataset.country) {
@@ -630,6 +649,7 @@ export const onboardingPage = {
     });
 
     render();
-    return () => { alive = false; };
+    if (saved && s.step > 0) setTimeout(() => toast('Welcome back. We kept your answers.'), 300);
+    return () => { alive = false; offPop(); };
   },
 };
